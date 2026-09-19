@@ -46,13 +46,6 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
   private val _sortOrder = MutableStateFlow(SortOrder.PINNED_FIRST)
   val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
 
-  init {
-    viewModelScope.launch {
-      // Start with zero notes
-      repository.clearAllNotes()
-    }
-  }
-
   val uiState: StateFlow<NotesUiState> = combine(
     repository.allNotes,
     _viewMode,
@@ -68,7 +61,7 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
       SortOrder.DATE_OLDEST -> activeList.sortedBy { it.updatedAt }
       SortOrder.TITLE_AZ -> activeList.sortedBy { it.title.lowercase() }
       SortOrder.PINNED_FIRST -> activeList.sortedWith(
-        compareByDescending<Note> { it.isPinned }.thenByDescending { it.updatedAt }
+        compareByDescending<Note> { it.isPinned }.thenBy { it.orderIndex }.thenByDescending { it.updatedAt }
       )
     }
 
@@ -145,19 +138,41 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
     }
   }
 
+  fun reorderNotes(reorderedNotes: List<Note>) {
+    viewModelScope.launch {
+      repository.reorderNotes(reorderedNotes.map { it.id })
+    }
+  }
+
   fun toggleChecklistItem(note: Note, itemIndex: Int) {
     viewModelScope.launch {
-      val items = note.checklistItems.toMutableList()
-      if (itemIndex in items.indices) {
-        val current = items[itemIndex]
-        items[itemIndex] = current.copy(isChecked = !current.isChecked)
-        val updatedNote = note.copy(
-          checklistItems = items,
-          content = Note.serializeChecklist(items),
-          updatedAt = System.currentTimeMillis()
-        )
-        repository.saveNote(updatedNote)
+      val lines = note.content.lines().toMutableList()
+      var checklistCount = 0
+      for (i in lines.indices) {
+        val trimmed = lines[i].trim()
+        val isBox = trimmed.startsWith("- [ ] ") || trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") ||
+          trimmed.startsWith("* [ ] ") || trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ")
+        if (isBox) {
+          if (checklistCount == itemIndex) {
+            val indent = lines[i].substring(0, lines[i].indexOf(trimmed))
+            val prefix = if (trimmed.startsWith("*")) "*" else "-"
+            val text = trimmed.substring(6)
+            val isChecked = trimmed.startsWith("- [x]") || trimmed.startsWith("- [X]") ||
+              trimmed.startsWith("* [x]") || trimmed.startsWith("* [X]")
+            val newCheck = if (isChecked) "[ ]" else "[x]"
+            lines[i] = "$indent$prefix $newCheck $text"
+            break
+          }
+          checklistCount++
+        }
       }
+      val newContent = lines.joinToString("\n")
+      val updatedNote = note.copy(
+        content = newContent,
+        checklistItems = Note.parseChecklist(newContent),
+        updatedAt = System.currentTimeMillis()
+      )
+      repository.saveNote(updatedNote)
     }
   }
 }

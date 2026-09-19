@@ -17,27 +17,20 @@ data class Note(
   val isChecklist: Boolean = false,
   val checklistItems: List<ChecklistItem> = emptyList(),
   val colorHex: Long = 0L,
-  val isEncrypted: Boolean = true,
+  val isEncrypted: Boolean = false,
   val isPinned: Boolean = false,
   val isArchived: Boolean = false,
   val isTrashed: Boolean = false,
   val createdAt: Long = System.currentTimeMillis(),
   val updatedAt: Long = System.currentTimeMillis(),
-  val isUnlocked: Boolean = false // transient in-memory lock state
+  val isUnlocked: Boolean = true, // transient in-memory lock state
+  val orderIndex: Int = 0
 ) {
   val displayTitle: String
-    get() = if (isEncrypted && !isUnlocked) {
-      if (title.isNotEmpty()) title else "Encrypted Vault Note"
-    } else {
-      if (title.isNotBlank()) title else "Untitled Note"
-    }
+    get() = if (title.isNotBlank()) title else "Untitled Note"
 
   val displayContent: String
-    get() = if (isEncrypted && !isUnlocked) {
-      "🔒 Protected with 256-bit AES-GCM encryption. Tap to authenticate with Biometrics."
-    } else {
-      content
-    }
+    get() = content
 
   val wordCount: Int
     get() = if (content.isBlank() || (isEncrypted && !isUnlocked)) 0
@@ -64,9 +57,17 @@ data class Note(
         return Pair(completed, total)
       }
       val lines = content.lines()
-      val total = lines.count { it.startsWith("- [ ]") || it.startsWith("- [x]") || it.startsWith("- [X]") }
+      val total = lines.count { line ->
+        val t = line.trim()
+        t.startsWith("- [ ]") || t.startsWith("- [x]") || t.startsWith("- [X]") ||
+          t.startsWith("* [ ]") || t.startsWith("* [x]") || t.startsWith("* [X]")
+      }
       if (total == 0) return null
-      val completed = lines.count { it.startsWith("- [x]") || it.startsWith("- [X]") }
+      val completed = lines.count { line ->
+        val t = line.trim()
+        t.startsWith("- [x]") || t.startsWith("- [X]") ||
+          t.startsWith("* [x]") || t.startsWith("* [X]")
+      }
       return Pair(completed, total)
     }
 
@@ -80,24 +81,27 @@ data class Note(
 
     fun parseChecklist(content: String): List<ChecklistItem> {
       if (content.isBlank()) return emptyList()
-      return content.lines().mapNotNull { line ->
+      val lines = content.lines()
+      val hasChecklist = lines.any { line ->
+        val t = line.trim()
+        t.startsWith("- [ ]") || t.startsWith("- [x]") || t.startsWith("- [X]") ||
+          t.startsWith("* [ ]") || t.startsWith("* [x]") || t.startsWith("* [X]")
+      }
+      if (!hasChecklist) return emptyList()
+
+      return lines.mapNotNull { line ->
         val trimmed = line.trim()
         when {
-          trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") -> {
+          trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") ||
+            trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> {
             ChecklistItem(
               text = trimmed.substring(6),
               isChecked = true
             )
           }
-          trimmed.startsWith("- [ ] ") -> {
+          trimmed.startsWith("- [ ] ") || trimmed.startsWith("* [ ] ") -> {
             ChecklistItem(
               text = trimmed.substring(6),
-              isChecked = false
-            )
-          }
-          trimmed.isNotEmpty() -> {
-            ChecklistItem(
-              text = trimmed,
               isChecked = false
             )
           }

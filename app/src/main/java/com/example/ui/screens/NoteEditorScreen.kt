@@ -2,21 +2,18 @@ package com.example.ui.screens
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -24,7 +21,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -50,10 +52,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -80,15 +83,33 @@ fun NoteEditorScreen(
   val keyboardController = LocalSoftwareKeyboardController.current
 
   var title by remember { mutableStateOf(initialNote?.title ?: "") }
-  var content by remember { mutableStateOf(initialNote?.content ?: "") }
+  var contentTextFieldValue by remember {
+    mutableStateOf(TextFieldValue(text = initialNote?.content ?: ""))
+  }
   var isPinned by remember { mutableStateOf(initialNote?.isPinned ?: false) }
   var isPreviewMode by remember { mutableStateOf(false) }
+  var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
   fun saveCurrentNote() {
+    val trimmedTitle = title.trim()
+    val trimmedContent = contentTextFieldValue.text.trim()
+
+    // If both title and content are blank:
+    if (trimmedTitle.isBlank() && trimmedContent.isBlank()) {
+      if (initialNote != null && initialNote.id != 0L) {
+        // If an existing note was edited to be completely empty, delete/trash it
+        onDeleteNote(initialNote)
+      } else {
+        // For a new note with no content, simply discard and navigate back without saving
+        onNavigateBack()
+      }
+      return
+    }
+
     val noteToSave = (initialNote ?: Note()).copy(
-      title = title.trim(),
-      content = content.trim(),
-      isChecklist = content.lines().any { it.trimStart().startsWith("- [ ]") || it.trimStart().startsWith("- [x]") },
+      title = trimmedTitle,
+      content = trimmedContent,
+      isChecklist = false,
       colorHex = 0L,
       isEncrypted = false,
       isPinned = isPinned,
@@ -102,10 +123,233 @@ fun NoteEditorScreen(
     saveCurrentNote()
   }
 
+  // Delete Confirmation Dialog
+  if (showDeleteConfirmDialog) {
+    AlertDialog(
+      onDismissRequest = { showDeleteConfirmDialog = false },
+      title = {
+        Text(
+          text = stringResource(R.string.dialog_delete_title),
+          fontWeight = FontWeight.Bold
+        )
+      },
+      text = {
+        Text(text = stringResource(R.string.dialog_delete_message))
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            showDeleteConfirmDialog = false
+            if (initialNote != null) {
+              onDeleteNote(initialNote)
+            } else {
+              onNavigateBack()
+            }
+          },
+          modifier = Modifier.testTag("confirm_delete_button")
+        ) {
+          Text(
+            text = stringResource(R.string.action_delete),
+            color = MaterialTheme.colorScheme.error,
+            fontWeight = FontWeight.Bold
+          )
+        }
+      },
+      dismissButton = {
+        TextButton(
+          onClick = { showDeleteConfirmDialog = false },
+          modifier = Modifier.testTag("cancel_delete_button")
+        ) {
+          Text(text = stringResource(R.string.action_cancel))
+        }
+      },
+      modifier = Modifier.testTag("confirm_delete_dialog")
+    )
+  }
+
+  // Helper regex for identifying list items, blockquotes, and headings
+  val blockMarkerRegex = Regex("""^(\s*)(-\s*\[[ xX]\]\s*|\*\s*\[[ xX]\]\s*|[-*]\s+|\d+\.\s+|>\s+|#{1,6}\s+)""")
+
+  // Helper functions for formatting selected text or inserting at cursor
+  fun applyInlineFormat(prefix: String, suffix: String, defaultPlaceholder: String = "text") {
+    val text = contentTextFieldValue.text
+    val selection = contentTextFieldValue.selection
+    if (selection.min != selection.max) {
+      val start = selection.min
+      val end = selection.max
+      val selected = text.substring(start, end)
+
+      // 1. If the selected text itself starts with prefix and ends with suffix -> strip/untoggle
+      if (selected.startsWith(prefix) && selected.endsWith(suffix) && selected.length >= prefix.length + suffix.length) {
+        val unstyled = selected.substring(prefix.length, selected.length - suffix.length)
+        val newText = text.replaceRange(start, end, unstyled)
+        contentTextFieldValue = TextFieldValue(
+          text = newText,
+          selection = TextRange(start, start + unstyled.length)
+        )
+        return
+      }
+
+      // 2. If the characters immediately outside the selection are prefix and suffix -> strip/untoggle
+      if (start >= prefix.length && end + suffix.length <= text.length) {
+        val before = text.substring(start - prefix.length, start)
+        val after = text.substring(end, end + suffix.length)
+        if (before == prefix && after == suffix) {
+          val newText = text.substring(0, start - prefix.length) + selected + text.substring(end + suffix.length)
+          contentTextFieldValue = TextFieldValue(
+            text = newText,
+            selection = TextRange(start - prefix.length, start - prefix.length + selected.length)
+          )
+          return
+        }
+      }
+
+      // 3. Otherwise wrap with prefix and suffix
+      val replacement = "$prefix$selected$suffix"
+      val newText = text.replaceRange(start, end, replacement)
+      contentTextFieldValue = TextFieldValue(
+        text = newText,
+        selection = TextRange(start + prefix.length, start + prefix.length + selected.length)
+      )
+    } else {
+      val cursorPos = selection.start
+
+      // 1. Check if cursor is directly between prefix and suffix (e.g. **|**)
+      if (cursorPos >= prefix.length && cursorPos + suffix.length <= text.length) {
+        val before = text.substring(cursorPos - prefix.length, cursorPos)
+        val after = text.substring(cursorPos, cursorPos + suffix.length)
+        if (before == prefix && after == suffix) {
+          val newText = text.substring(0, cursorPos - prefix.length) + text.substring(cursorPos + suffix.length)
+          contentTextFieldValue = TextFieldValue(
+            text = newText,
+            selection = TextRange(cursorPos - prefix.length)
+          )
+          return
+        }
+      }
+
+      // 2. Check if cursor is inside an existing formatted span without newlines
+      val lastPrefix = text.lastIndexOf(prefix, (cursorPos - 1).coerceAtLeast(0))
+      val nextSuffix = text.indexOf(suffix, cursorPos)
+      if (lastPrefix != -1 && nextSuffix != -1 && nextSuffix > lastPrefix) {
+        val inner = text.substring(lastPrefix + prefix.length, nextSuffix)
+        if (!inner.contains('\n')) {
+          val newText = text.substring(0, lastPrefix) + inner + text.substring(nextSuffix + suffix.length)
+          val newCursor = (cursorPos - prefix.length).coerceIn(lastPrefix, lastPrefix + inner.length)
+          contentTextFieldValue = TextFieldValue(
+            text = newText,
+            selection = TextRange(newCursor)
+          )
+          return
+        }
+      }
+
+      // 3. Otherwise insert placeholder text
+      val insertion = "$prefix$defaultPlaceholder$suffix"
+      val newText = text.substring(0, cursorPos) + insertion + text.substring(cursorPos)
+      contentTextFieldValue = TextFieldValue(
+        text = newText,
+        selection = TextRange(cursorPos + prefix.length, cursorPos + prefix.length + defaultPlaceholder.length)
+      )
+    }
+  }
+
+  fun applyBlockFormat(prefix: String) {
+    val text = contentTextFieldValue.text
+    val selection = contentTextFieldValue.selection
+    if (selection.min != selection.max) {
+      val start = selection.min
+      val end = selection.max
+
+      // Expand to full line boundaries
+      val lastNewlineBefore = text.lastIndexOf('\n', (start - 1).coerceAtLeast(0))
+      val lineStart = if (lastNewlineBefore == -1 || start == 0) 0 else lastNewlineBefore + 1
+      val nextNewlineAfter = text.indexOf('\n', end)
+      val lineEnd = if (nextNewlineAfter == -1) text.length else nextNewlineAfter
+
+      val fullLinesText = text.substring(lineStart, lineEnd)
+      val lines = fullLinesText.lines()
+      val nonBlankLines = lines.filter { it.isNotBlank() }
+
+      // Check if all non-blank lines already have this exact style -> if so, remove/untoggle
+      val allHaveSamePrefix = nonBlankLines.isNotEmpty() && nonBlankLines.all { line ->
+        line.trimStart().startsWith(prefix.trim())
+      }
+
+      val formattedLines = if (allHaveSamePrefix) {
+        lines.map { line ->
+          val indent = line.takeWhile { it.isWhitespace() }
+          val trimmed = line.substring(indent.length)
+          if (trimmed.startsWith(prefix.trim())) {
+            indent + trimmed.removePrefix(prefix.trim()).trimStart()
+          } else {
+            line
+          }
+        }
+      } else {
+        lines.map { line ->
+          if (line.isBlank()) {
+            line
+          } else {
+            val match = blockMarkerRegex.find(line)
+            if (match != null) {
+              val indent = match.groupValues[1]
+              val rest = line.substring(match.range.last + 1)
+              "$indent$prefix$rest"
+            } else {
+              val indent = line.takeWhile { it.isWhitespace() }
+              val rest = line.substring(indent.length)
+              "$indent$prefix$rest"
+            }
+          }
+        }
+      }
+
+      val replacement = formattedLines.joinToString("\n")
+      val newText = text.substring(0, lineStart) + replacement + text.substring(lineEnd)
+      contentTextFieldValue = TextFieldValue(
+        text = newText,
+        selection = TextRange(lineStart, lineStart + replacement.length)
+      )
+    } else {
+      val cursorPos = selection.start
+      val lastNewline = text.lastIndexOf('\n', (cursorPos - 1).coerceAtLeast(0))
+      val lineStart = if (lastNewline == -1 || cursorPos == 0) 0 else lastNewline + 1
+      val nextNewline = text.indexOf('\n', cursorPos)
+      val lineEnd = if (nextNewline == -1) text.length else nextNewline
+
+      val currentLine = text.substring(lineStart, lineEnd)
+      val indent = currentLine.takeWhile { it.isWhitespace() }
+      val trimmed = currentLine.substring(indent.length)
+
+      val newLine = if (trimmed.startsWith(prefix.trim())) {
+        // Toggle off if it already has this format
+        indent + trimmed.removePrefix(prefix.trim()).trimStart()
+      } else {
+        val match = blockMarkerRegex.find(currentLine)
+        if (match != null) {
+          // Replace existing block marker (e.g. numbered list to bullet or checklist)
+          val lineIndent = match.groupValues[1]
+          val rest = currentLine.substring(match.range.last + 1)
+          "$lineIndent$prefix$rest"
+        } else {
+          "$indent$prefix$trimmed"
+        }
+      }
+
+      val newText = text.substring(0, lineStart) + newLine + text.substring(lineEnd)
+      val delta = newLine.length - currentLine.length
+      val newCursor = (cursorPos + delta).coerceIn(lineStart, lineStart + newLine.length)
+      contentTextFieldValue = TextFieldValue(
+        text = newText,
+        selection = TextRange(newCursor)
+      )
+    }
+  }
+
   Scaffold(
     modifier = modifier
       .fillMaxSize()
-      .imePadding()
       .testTag("note_editor_screen"),
     contentWindowInsets = WindowInsets(0, 0, 0, 0),
     containerColor = MaterialTheme.colorScheme.background,
@@ -136,7 +380,7 @@ fun NoteEditorScreen(
           }
         },
         actions = {
-          // Preview / Edit Mode Toggle Button (Icon only)
+          // Preview / Edit Mode Toggle Button
           IconButton(
             onClick = { isPreviewMode = !isPreviewMode },
             modifier = Modifier.testTag("editor_toggle_preview_button")
@@ -149,7 +393,7 @@ fun NoteEditorScreen(
               )
             } else {
               Icon(
-                painter = painterResource(R.drawable.ic_visibility),
+                imageVector = Icons.Default.Visibility,
                 contentDescription = stringResource(R.string.tool_preview),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
               )
@@ -162,7 +406,7 @@ fun NoteEditorScreen(
             modifier = Modifier.testTag("editor_pin_button")
           ) {
             Icon(
-              painter = painterResource(if (isPinned) R.drawable.ic_pin else R.drawable.ic_pin_outlined),
+              imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
               contentDescription = stringResource(if (isPinned) R.string.action_unpin else R.string.action_pin),
               tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -171,10 +415,11 @@ fun NoteEditorScreen(
           // Share Button
           IconButton(
             onClick = {
+              val currentContent = contentTextFieldValue.text
               val sendIntent: Intent = Intent().apply {
                 action = Intent.ACTION_SEND
                 putExtra(Intent.EXTRA_TITLE, title)
-                putExtra(Intent.EXTRA_TEXT, "$title\n\n$content")
+                putExtra(Intent.EXTRA_TEXT, "$title\n\n$currentContent")
                 type = "text/plain"
               }
               context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.action_share)))
@@ -188,10 +433,10 @@ fun NoteEditorScreen(
             )
           }
 
-          // Delete Button (if editing existing note)
+          // Delete Button (shows confirm dialog)
           if (initialNote != null && initialNote.id != 0L) {
             IconButton(
-              onClick = { onDeleteNote(initialNote) },
+              onClick = { showDeleteConfirmDialog = true },
               modifier = Modifier.testTag("editor_delete_button")
             ) {
               Icon(
@@ -214,6 +459,7 @@ fun NoteEditorScreen(
       Column(
         modifier = Modifier
           .fillMaxSize()
+          .imePadding()
           .verticalScroll(rememberScrollState())
           .clickable(
             interactionSource = remember { MutableInteractionSource() },
@@ -225,7 +471,7 @@ fun NoteEditorScreen(
             }
           }
           .padding(horizontal = 18.dp)
-          .padding(bottom = 96.dp) // Room for the bottom floating bar
+          .padding(bottom = 96.dp)
       ) {
         // Title Input
         BasicTextField(
@@ -265,27 +511,35 @@ fun NoteEditorScreen(
 
         // Main Editor or Markdown Preview
         if (isPreviewMode) {
-          MarkdownRenderer(
-            markdownText = content.ifBlank { stringResource(R.string.note_preview_empty) },
-            onToggleTask = { lineIndex, isChecked ->
-              val lines = content.lines().toMutableList()
-              if (lineIndex in lines.indices) {
-                val targetLine = lines[lineIndex]
-                val updatedLine = if (isChecked) {
-                  targetLine.replaceFirst("- [ ]", "- [x]").replaceFirst("* [ ]", "* [x]")
-                } else {
-                  targetLine.replaceFirst("- [x]", "- [ ]").replaceFirst("* [x]", "* [ ]")
+          // If empty, show exactly nothing as requested
+          val currentContent = contentTextFieldValue.text
+          if (currentContent.isNotBlank()) {
+            MarkdownRenderer(
+              markdownText = currentContent,
+              onToggleTask = { lineIndex, isChecked ->
+                val lines = currentContent.lines().toMutableList()
+                if (lineIndex in lines.indices) {
+                  val targetLine = lines[lineIndex]
+                  val updatedLine = if (isChecked) {
+                    targetLine.replaceFirst("- [ ]", "- [x]").replaceFirst("* [ ]", "* [x]")
+                  } else {
+                    targetLine.replaceFirst("- [x]", "- [ ]").replaceFirst("* [x]", "* [ ]")
+                  }
+                  lines[lineIndex] = updatedLine
+                  val newText = lines.joinToString("\n")
+                  contentTextFieldValue = TextFieldValue(text = newText)
                 }
-                lines[lineIndex] = updatedLine
-                content = lines.joinToString("\n")
-              }
-            },
-            modifier = Modifier.testTag("markdown_rendered_preview")
-          )
+              },
+              modifier = Modifier.testTag("markdown_rendered_preview")
+            )
+          } else {
+            // Render exactly nothing for empty content preview
+            Box(modifier = Modifier.fillMaxWidth().testTag("markdown_rendered_preview"))
+          }
         } else {
           BasicTextField(
-            value = content,
-            onValueChange = { content = it },
+            value = contentTextFieldValue,
+            onValueChange = { contentTextFieldValue = it },
             modifier = Modifier
               .fillMaxWidth()
               .focusRequester(contentFocusRequester)
@@ -298,7 +552,7 @@ fun NoteEditorScreen(
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             decorationBox = { innerTextField ->
-              if (content.isEmpty()) {
+              if (contentTextFieldValue.text.isEmpty()) {
                 Text(
                   text = stringResource(R.string.note_body_placeholder),
                   style = TextStyle(
@@ -329,53 +583,101 @@ fun NoteEditorScreen(
         }
       }
 
-      // Bottom Floating Bar for Editor Features & Markdown
-      EditorFloatingBar(
-        onInsertHeading = {
-          content = if (content.endsWith("\n") || content.isEmpty()) "$content## " else "$content\n## "
-        },
-        onInsertBold = {
-          content = "$content**bold**"
-        },
-        onInsertItalic = {
-          content = "$content*italic*"
-        },
-        onInsertStrikethrough = {
-          content = "$content~~strikethrough~~"
-        },
-        onInsertChecklist = {
-          content = if (content.endsWith("\n") || content.isEmpty()) "$content- [ ] " else "$content\n- [ ] "
-        },
-        onInsertBullet = {
-          content = if (content.endsWith("\n") || content.isEmpty()) "$content- " else "$content\n- "
-        },
-        onInsertNumbered = {
-          content = if (content.endsWith("\n") || content.isEmpty()) "${content}1. " else "$content\n1. "
-        },
-        onInsertCode = {
-          content = if (content.endsWith("\n") || content.isEmpty()) "$content```\n// code\n```\n" else "$content\n```\n// code\n```\n"
-        },
-        onInsertQuote = {
-          content = if (content.endsWith("\n") || content.isEmpty()) "$content> " else "$content\n> "
-        },
-        onInsertTable = {
-          val tableTemplate = "\n| Item | Status |\n| --- | --- |\n| Task 1 | In Progress |\n| Task 2 | Done |\n"
-          content = "$content$tableTemplate"
-        },
-        onInsertHorizontalRule = {
-          content = if (content.endsWith("\n") || content.isEmpty()) "$content---\n" else "$content\n---\n"
-        },
-        onInsertLink = {
-          content = "$content[link title](https://example.com)"
-        },
-        onInsertTimestamp = {
-          val now = SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault()).format(Date())
-          content = "$content\n[$now]\n"
-        },
-        modifier = Modifier
-          .align(Alignment.BottomCenter)
-          .navigationBarsPadding()
-      )
+      // Bottom Floating Bar moves with keyboard via imePadding
+      if (!isPreviewMode) {
+        EditorFloatingBar(
+          onInsertHeading = { applyBlockFormat("## ") },
+          onInsertBold = { applyInlineFormat("**", "**", "bold") },
+          onInsertItalic = { applyInlineFormat("*", "*", "italic") },
+          onInsertStrikethrough = { applyInlineFormat("~~", "~~", "strikethrough") },
+          onInsertChecklist = { applyBlockFormat("- [ ] ") },
+          onInsertBullet = { applyBlockFormat("- ") },
+          onInsertNumbered = { applyBlockFormat("1. ") },
+          onInsertCode = {
+            val text = contentTextFieldValue.text
+            val selection = contentTextFieldValue.selection
+            if (selection.min != selection.max) {
+              val start = selection.min
+              val end = selection.max
+              val selected = text.substring(start, end)
+              if (selected.startsWith("```\n") && selected.endsWith("\n```")) {
+                val unstyled = selected.removePrefix("```\n").removeSuffix("\n```")
+                val newText = text.replaceRange(start, end, unstyled)
+                contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(start, start + unstyled.length))
+              } else if (selected.startsWith("`") && selected.endsWith("`") && selected.length >= 2) {
+                val unstyled = selected.removePrefix("`").removeSuffix("`")
+                val newText = text.replaceRange(start, end, unstyled)
+                contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(start, start + unstyled.length))
+              } else if (start >= 1 && end + 1 <= text.length && text[start - 1] == '`' && text[end] == '`') {
+                val newText = text.substring(0, start - 1) + selected + text.substring(end + 1)
+                contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(start - 1, start - 1 + selected.length))
+              } else if (selected.contains("\n")) {
+                val replacement = "```\n$selected\n```"
+                val newText = text.replaceRange(start, end, replacement)
+                contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(start + 4, start + 4 + selected.length))
+              } else {
+                val replacement = "`$selected`"
+                val newText = text.replaceRange(start, end, replacement)
+                contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(start + 1, start + 1 + selected.length))
+              }
+            } else {
+              applyInlineFormat("`", "`", "code")
+            }
+          },
+          onInsertQuote = { applyBlockFormat("> ") },
+          onInsertTable = {
+            val tableTemplate = "\n| Item | Status |\n| --- | --- |\n| Task 1 | In Progress |\n| Task 2 | Done |\n"
+            val text = contentTextFieldValue.text
+            val cursorPos = contentTextFieldValue.selection.start
+            val newText = text.substring(0, cursorPos) + tableTemplate + text.substring(cursorPos)
+            contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(cursorPos + tableTemplate.length))
+          },
+          onInsertHorizontalRule = {
+            val rule = "\n---\n"
+            val text = contentTextFieldValue.text
+            val cursorPos = contentTextFieldValue.selection.start
+            val newText = text.substring(0, cursorPos) + rule + text.substring(cursorPos)
+            contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(cursorPos + rule.length))
+          },
+          onInsertLink = {
+            val text = contentTextFieldValue.text
+            val selection = contentTextFieldValue.selection
+            if (selection.min != selection.max) {
+              val start = selection.min
+              val end = selection.max
+              val selected = text.substring(start, end)
+              val linkRegex = Regex("""^\[(.*)\]\(.*?\)$""")
+              val match = linkRegex.find(selected)
+              if (match != null) {
+                val plain = match.groupValues[1]
+                val newText = text.replaceRange(start, end, plain)
+                contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(start, start + plain.length))
+              } else {
+                val replacement = "[$selected](https://)"
+                val newText = text.replaceRange(start, end, replacement)
+                contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(start + selected.length + 3, start + replacement.length - 1))
+              }
+            } else {
+              val cursorPos = selection.start
+              val insertion = "[link](https://)"
+              val newText = text.substring(0, cursorPos) + insertion + text.substring(cursorPos)
+              contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(cursorPos + 1, cursorPos + 5))
+            }
+          },
+          onInsertTimestamp = {
+            val now = SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault()).format(Date())
+            val stamp = " [$now] "
+            val text = contentTextFieldValue.text
+            val cursorPos = contentTextFieldValue.selection.start
+            val newText = text.substring(0, cursorPos) + stamp + text.substring(cursorPos)
+            contentTextFieldValue = TextFieldValue(text = newText, selection = TextRange(cursorPos + stamp.length))
+          },
+          modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .imePadding()
+            .navigationBarsPadding()
+        )
+      }
     }
   }
 }

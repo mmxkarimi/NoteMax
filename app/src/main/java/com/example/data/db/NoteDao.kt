@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
-  @Query("SELECT * FROM notes ORDER BY isPinned DESC, updatedAt DESC")
+  @Query("SELECT * FROM notes ORDER BY isPinned DESC, orderIndex ASC, updatedAt DESC")
   fun getAllNotes(): Flow<List<NoteEntity>>
 
   @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
@@ -24,6 +24,9 @@ interface NoteDao {
 
   @Update
   suspend fun updateNote(note: NoteEntity)
+
+  @Query("UPDATE notes SET orderIndex = :orderIndex WHERE id = :id")
+  suspend fun updateOrderIndex(id: Long, orderIndex: Int)
 
   @Query("UPDATE notes SET isPinned = :isPinned, updatedAt = :timestamp WHERE id = :id")
   suspend fun setPinned(id: Long, isPinned: Boolean, timestamp: Long = System.currentTimeMillis())

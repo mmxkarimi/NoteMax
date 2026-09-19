@@ -42,8 +42,11 @@ private val DarkColorScheme =
     surfaceVariant = FallbackDarkSurfaceVariant,
     onSurfaceVariant = FallbackDarkOnSurfaceVariant,
     outline = FallbackDarkOutline,
+    surfaceContainerLowest = FallbackDarkSurfaceContainerLowest,
+    surfaceContainerLow = FallbackDarkSurfaceContainerLow,
     surfaceContainer = FallbackDarkSurfaceContainer,
-    surfaceContainerHigh = FallbackDarkSurfaceContainerHigh
+    surfaceContainerHigh = FallbackDarkSurfaceContainerHigh,
+    surfaceContainerHighest = FallbackDarkSurfaceContainerHighest
   )
 
 // Light Color Scheme with #c6f135 as primary fallback
@@ -68,8 +71,11 @@ private val LightColorScheme =
     surfaceVariant = FallbackLightSurfaceVariant,
     onSurfaceVariant = FallbackLightOnSurfaceVariant,
     outline = FallbackLightOutline,
+    surfaceContainerLowest = FallbackLightSurfaceContainerLowest,
+    surfaceContainerLow = FallbackLightSurfaceContainerLow,
     surfaceContainer = FallbackLightSurfaceContainer,
-    surfaceContainerHigh = FallbackLightSurfaceContainerHigh
+    surfaceContainerHigh = FallbackLightSurfaceContainerHigh,
+    surfaceContainerHighest = FallbackLightSurfaceContainerHighest
   )
 
 @Composable

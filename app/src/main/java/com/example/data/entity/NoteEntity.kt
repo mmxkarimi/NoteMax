@@ -11,10 +11,11 @@ data class NoteEntity(
   val contentEncrypted: String,
   val isChecklist: Boolean = false,
   val colorHex: Long = 0L,
-  val isEncrypted: Boolean = true,
+  val isEncrypted: Boolean = false,
   val isPinned: Boolean = false,
   val isArchived: Boolean = false,
   val isTrashed: Boolean = false,
   val createdAt: Long = System.currentTimeMillis(),
-  val updatedAt: Long = System.currentTimeMillis()
+  val updatedAt: Long = System.currentTimeMillis(),
+  val orderIndex: Int = 0
 )

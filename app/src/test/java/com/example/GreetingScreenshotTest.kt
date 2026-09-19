@@ -41,7 +41,6 @@ class GreetingScreenshotTest {
             isPinned = true
           ),
           onClick = {},
-          onUnlockRequest = {},
           onTogglePin = {},
           onRemove = {},
           onRestore = {},

@@ -2,6 +2,8 @@
     <string name="app_name">NoteMax</string>
     <string name="no_notes_yet">No notes yet</string>
     <string name="no_notes_description">Tap + to create your first note or checklist</string>
+    <string name="search_notes">Search notes</string>
+    <string name="search_notes_placeholder">Search notes and content...</string>
     <string name="no_search_results">No matching notes found</string>
     <string name="no_search_results_description">Try searching for another keyword</string>
     <string name="pinned_section">PINNED</string>
@@ -72,4 +74,5 @@
     <string name="untitled_note">Untitled Note</string>
     <string name="encrypted_vault_note">Encrypted Note</string>
     <string name="encrypted_note_preview">🔒 Protected with 256-bit AES-GCM encryption.</string>
+    <string name="drag_to_reorder">Drag to reorder</string>
 </resources>

@@ -31,8 +31,11 @@ val FallbackLightOnSurface = Color(0xFF1A1C16)
 val FallbackLightSurfaceVariant = Color(0xFFE2E4D4)
 val FallbackLightOnSurfaceVariant = Color(0xFF45483C)
 val FallbackLightOutline = Color(0xFF75796B)
+val FallbackLightSurfaceContainerLowest = Color(0xFFFFFFFF)
+val FallbackLightSurfaceContainerLow = Color(0xFFF7F8EE)
 val FallbackLightSurfaceContainer = Color(0xFFF1F2E8)
 val FallbackLightSurfaceContainerHigh = Color(0xFFEBEDE2)
+val FallbackLightSurfaceContainerHighest = Color(0xFFE5E7DC)
 
 // Fallback Dark Color Palette based on #c6f135
 val FallbackDarkPrimary = Color(0xFFC6F135)
@@ -57,8 +60,11 @@ val FallbackDarkOnSurface = Color(0xFFE3E3DC)
 val FallbackDarkSurfaceVariant = Color(0xFF45483C)
 val FallbackDarkOnSurfaceVariant = Color(0xFFC6C8B8)
 val FallbackDarkOutline = Color(0xFF909282)
+val FallbackDarkSurfaceContainerLowest = Color(0xFF0D0F0A)
+val FallbackDarkSurfaceContainerLow = Color(0xFF161912)
 val FallbackDarkSurfaceContainer = Color(0xFF1E211A)
 val FallbackDarkSurfaceContainerHigh = Color(0xFF282B24)
+val FallbackDarkSurfaceContainerHighest = Color(0xFF33362E)
 
 // Legacy colors for backwards compatibility
 val CyberCyan = Color(0xFF00E5FF)

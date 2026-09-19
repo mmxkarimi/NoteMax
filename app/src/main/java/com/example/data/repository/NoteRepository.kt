@@ -69,13 +69,7 @@ class NoteRepository(private val noteDao: NoteDao) {
 
   suspend fun saveNote(note: Note): Long {
     val now = System.currentTimeMillis()
-
-    // Serialize checklist content if in checklist mode
-    val finalContent = if (note.isChecklist && note.checklistItems.isNotEmpty()) {
-      Note.serializeChecklist(note.checklistItems)
-    } else {
-      note.content
-    }
+    val finalContent = note.content
 
     // Perform AES-256 GCM encryption on title and content if note is marked encrypted
     val (encryptedTitle, encryptedContent) = if (note.isEncrypted) {
@@ -98,7 +92,8 @@ class NoteRepository(private val noteDao: NoteDao) {
       isArchived = note.isArchived,
       isTrashed = note.isTrashed,
       createdAt = if (note.id == 0L) now else note.createdAt,
-      updatedAt = now
+      updatedAt = now,
+      orderIndex = note.orderIndex
     )
 
     val savedId = noteDao.insertNote(entity)
@@ -106,6 +101,12 @@ class NoteRepository(private val noteDao: NoteDao) {
     val targetId = if (note.id == 0L) savedId else note.id
     unlockNote(targetId)
     return targetId
+  }
+
+  suspend fun reorderNotes(orderedIds: List<Long>) {
+    orderedIds.forEachIndexed { index, id ->
+      noteDao.updateOrderIndex(id, index)
+    }
   }
 
   suspend fun togglePin(id: Long, isPinned: Boolean) {
@@ -179,7 +180,8 @@ class NoteRepository(private val noteDao: NoteDao) {
       isTrashed = entity.isTrashed,
       createdAt = entity.createdAt,
       updatedAt = entity.updatedAt,
-      isUnlocked = isUnlocked
+      isUnlocked = isUnlocked,
+      orderIndex = entity.orderIndex
     )
   }
 

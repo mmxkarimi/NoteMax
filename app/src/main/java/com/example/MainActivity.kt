@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
             onNoteClick = { note ->
               currentScreen = Screen.Editor(note)
             },
-            onNewStandardNote = {
+            onNewNote = {
               val newNote = Note(
                 isChecklist = false,
                 isEncrypted = false,
@@ -99,20 +99,15 @@ class MainActivity : ComponentActivity() {
               )
               currentScreen = Screen.Editor(newNote)
             },
-            onNewChecklistNote = {
-              val newChecklist = Note(
-                isChecklist = true,
-                isEncrypted = false,
-                isUnlocked = true
-              )
-              currentScreen = Screen.Editor(newChecklist)
-            },
             onTogglePin = { note -> viewModel.togglePin(note) },
             onRemove = { note -> viewModel.removeNote(note) },
             onRestore = { note -> viewModel.restoreNote(note) },
             onDeletePermanently = { note -> viewModel.deletePermanently(note) },
             onToggleChecklistItem = { note, itemIndex ->
               viewModel.toggleChecklistItem(note, itemIndex)
+            },
+            onReorderNotes = { reorderedList ->
+              viewModel.reorderNotes(reorderedList)
             }
           )
         }
