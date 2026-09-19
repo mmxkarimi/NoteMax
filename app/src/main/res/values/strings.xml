@@ -32,6 +32,7 @@
 
     <!-- Sorting -->
     <string name="sort_notes">Sort Notes</string>
+    <string name="sort_custom">Custom</string>
     <string name="sort_recently_updated">Recently Updated</string>
     <string name="sort_oldest">Oldest First</string>
     <string name="sort_title_az">Title (A-Z)</string>

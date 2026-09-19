@@ -30,6 +30,7 @@
 
     <!-- Sorting -->
     <string name="sort_notes">مرتب‌سازی</string>
+    <string name="sort_custom">سفارشی (دستی)</string>
     <string name="sort_recently_updated">آخرین تغییرات</string>
     <string name="sort_oldest">قدیمی‌ترین</string>
     <string name="sort_title_az">عنوان (الف-ی)</string>

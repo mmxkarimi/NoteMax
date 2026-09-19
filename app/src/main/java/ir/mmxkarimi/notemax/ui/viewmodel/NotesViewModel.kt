@@ -21,6 +21,7 @@ enum class ViewMode {
 }
 
 enum class SortOrder(val stringRes: Int) {
+  CUSTOM(R.string.sort_custom),
   DATE_NEWEST(R.string.sort_recently_updated),
   DATE_OLDEST(R.string.sort_oldest),
   TITLE_AZ(R.string.sort_title_az),
@@ -57,11 +58,14 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
 
     // Sort items
     val sorted = when (sort) {
+      SortOrder.CUSTOM -> activeList.sortedWith(
+        compareByDescending<Note> { it.isPinned }.thenBy { it.orderIndex }.thenByDescending { it.updatedAt }
+      )
       SortOrder.DATE_NEWEST -> activeList.sortedByDescending { it.updatedAt }
       SortOrder.DATE_OLDEST -> activeList.sortedBy { it.updatedAt }
       SortOrder.TITLE_AZ -> activeList.sortedBy { it.title.lowercase() }
       SortOrder.PINNED_FIRST -> activeList.sortedWith(
-        compareByDescending<Note> { it.isPinned }.thenBy { it.orderIndex }.thenByDescending { it.updatedAt }
+        compareByDescending<Note> { it.isPinned }.thenByDescending { it.updatedAt }
       )
     }
 

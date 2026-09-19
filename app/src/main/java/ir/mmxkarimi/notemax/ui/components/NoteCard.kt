@@ -67,6 +67,7 @@ fun NoteCard(
   onToggleChecklistItem: ((Int) -> Unit)? = null,
   onUnlockRequest: () -> Unit = {},
   isDragging: Boolean = false,
+  canReorder: Boolean = true,
   dragHandleModifier: Modifier = Modifier,
   modifier: Modifier = Modifier
 ) {
@@ -161,17 +162,19 @@ fun NoteCard(
         // Actions: Drag Handle, Pin, and Overflow
         Row(verticalAlignment = Alignment.CenterVertically) {
           if (!note.isTrashed) {
-            // Drag indicator handle
-            Icon(
-              imageVector = Icons.Default.DragIndicator,
-              contentDescription = stringResource(R.string.drag_to_reorder),
-              tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.45f),
-              modifier = Modifier
-                .size(32.dp)
-                .then(dragHandleModifier)
-                .padding(4.dp)
-                .testTag("drag_handle_${note.id}")
-            )
+            // Drag indicator handle (only shown when custom sorting is enabled)
+            if (canReorder) {
+              Icon(
+                imageVector = Icons.Default.DragIndicator,
+                contentDescription = stringResource(R.string.drag_to_reorder),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.45f),
+                modifier = Modifier
+                  .size(32.dp)
+                  .then(dragHandleModifier)
+                  .padding(4.dp)
+                  .testTag("drag_handle_${note.id}")
+              )
+            }
 
             IconButton(
               onClick = onTogglePin,
