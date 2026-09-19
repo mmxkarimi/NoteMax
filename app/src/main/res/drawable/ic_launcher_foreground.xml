@@ -1,0 +1,61 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Rounded note sheet card -->
+    <path
+        android:fillColor="#1E2314"
+        android:strokeColor="#C6F135"
+        android:strokeWidth="2.5"
+        android:strokeLineJoin="round"
+        android:pathData="M34,26 L66,26 C70,26 74,30 74,34 L74,74 C74,78 70,82 66,82 L34,82 C30,82 26,78 26,74 L26,34 C26,30 30,26 34,26 Z" />
+    
+    <!-- Checklist items inside NoteMax sheet -->
+    <!-- Item 1: Checked checkbox -->
+    <path
+        android:fillColor="#C6F135"
+        android:pathData="M33,36 L43,36 C44,36 45,37 45,38 L45,46 C45,47 44,48 43,48 L33,48 C32,48 31,47 31,46 L31,38 C31,37 32,36 33,36 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#1E2314"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M34,42 L37,45 L42,39" />
+    <!-- Item 1 line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#C6F135"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M50,42 L68,42" />
+
+    <!-- Item 2: Unchecked checkbox -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#C6F135"
+        android:strokeWidth="1.6"
+        android:pathData="M33,52 L43,52 C44,52 45,53 45,54 L45,62 C45,63 44,64 43,64 L33,64 C32,64 31,63 31,62 L31,54 C31,53 32,52 33,52 Z" />
+    <!-- Item 2 line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E2F97D"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M50,58 L65,58" />
+
+    <!-- Item 3: Security lock badge at bottom corner -->
+    <path
+        android:fillColor="#C6F135"
+        android:pathData="M68,64 L80,64 C82,64 83,65 83,67 L83,77 C83,79 82,80 80,80 L68,80 C66,80 65,79 65,77 L65,67 C65,65 66,64 68,64 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#C6F135"
+        android:strokeWidth="1.5"
+        android:pathData="M69,64 L69,61 C69,58 79,58 79,61 L79,64" />
+    <!-- Keyhole inside lock badge -->
+    <path
+        android:fillColor="#1A2402"
+        android:pathData="M74,69 A1.5,1.5 0 1,0 74,72 L74.5,75 L73.5,75 Z" />
+</vector>

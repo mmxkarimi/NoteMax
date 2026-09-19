@@ -1,0 +1,6 @@
+{
+  "name": "NoteMax",
+  "description": "Expressive Material 3 dynamic-color note-taking app with checklists, bi-directional text support, biometric protection, and smooth animations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,75 @@
+<resources>
+    <string name="app_name">NoteMax</string>
+    <string name="no_notes_yet">No notes yet</string>
+    <string name="no_notes_description">Tap + to create your first note or checklist</string>
+    <string name="no_search_results">No matching notes found</string>
+    <string name="no_search_results_description">Try searching for another keyword</string>
+    <string name="pinned_section">PINNED</string>
+    <string name="others_section">NOTES</string>
+    
+    <!-- Actions -->
+    <string name="action_note">Note</string>
+    <string name="action_checklist">Checklist</string>
+    <string name="action_add">Add</string>
+    <string name="action_pin">Pin to Top</string>
+    <string name="action_unpin">Unpin</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_move_to_trash">Remove</string>
+    <string name="action_restore">Restore Note</string>
+    <string name="action_delete_permanently">Delete Permanently</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_share">Share Note</string>
+    <string name="action_back">Back</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_save">Save</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_delete_title">Delete Note</string>
+    <string name="dialog_delete_message">Are you sure you want to permanently delete this note?</string>
+
+    <!-- Sorting -->
+    <string name="sort_notes">Sort Notes</string>
+    <string name="sort_recently_updated">Recently Updated</string>
+    <string name="sort_oldest">Oldest First</string>
+    <string name="sort_title_az">Title (A-Z)</string>
+    <string name="sort_pinned_first">Pinned First</string>
+
+    <!-- View Modes -->
+    <string name="view_mode_grid">Switch to grid view</string>
+    <string name="view_mode_list">Switch to list view</string>
+
+    <!-- Editor -->
+    <string name="note_title_placeholder">Title</string>
+    <string name="note_body_placeholder">Note</string>
+    <string name="note_preview_empty">No content to preview</string>
+    <string name="checklist_add_item">Add item...</string>
+    <string name="more_items_count">+%1$d more items</string>
+    <string name="word_count">%1$d words</string>
+    <string name="checklist_done">%1$d/%2$d done</string>
+
+    <!-- Formatting Tools -->
+    <string name="tool_checklist">Checklist item</string>
+    <string name="tool_bullet">Bullet point</string>
+    <string name="tool_numbered">Numbered List</string>
+    <string name="tool_heading">Heading</string>
+    <string name="tool_bold">Bold text</string>
+    <string name="tool_italic">Italic text</string>
+    <string name="tool_strikethrough">Strikethrough</string>
+    <string name="tool_code">Code</string>
+    <string name="tool_quote">Quote</string>
+    <string name="tool_table">Markdown Table</string>
+    <string name="tool_horizontal_rule">Divider line</string>
+    <string name="tool_link">Insert link</string>
+    <string name="tool_timestamp">Insert Timestamp</string>
+    <string name="tool_preview">Preview Markdown</string>
+    <string name="tool_edit">Edit Note</string>
+    <string name="action_options">Options</string>
+    <string name="copy_code">Copy code</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="badge_encrypted">Encrypted</string>
+    <string name="badge_aes_256">AES-256</string>
+    <string name="untitled_note">Untitled Note</string>
+    <string name="encrypted_vault_note">Encrypted Note</string>
+    <string name="encrypted_note_preview">🔒 Protected with 256-bit AES-GCM encryption.</string>
+</resources>

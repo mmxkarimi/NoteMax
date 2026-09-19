@@ -1,0 +1,75 @@
+<resources>
+    <string name="app_name">نوت‌مکس</string>
+    <string name="no_notes_yet">هنوز یادداشتی وجود ندارد</string>
+    <string name="no_notes_description">برای ایجاد اولین یادداشت یا چک‌لیست، دکمه + را بزنید</string>
+    <string name="no_search_results">یادداشتی یافت نشد</string>
+    <string name="no_search_results_description">کلمه دیگری را جستجو کنید</string>
+    <string name="pinned_section">پین شده</string>
+    <string name="others_section">یادداشت‌ها</string>
+    
+    <!-- Actions -->
+    <string name="action_note">یادداشت</string>
+    <string name="action_checklist">چک‌لیست</string>
+    <string name="action_add">افزودن</string>
+    <string name="action_pin">پین کردن به بالا</string>
+    <string name="action_unpin">برداشتن پین</string>
+    <string name="action_remove">حذف</string>
+    <string name="action_move_to_trash">حذف</string>
+    <string name="action_restore">بازیابی یادداشت</string>
+    <string name="action_delete_permanently">حذف دائمی</string>
+    <string name="action_delete">حذف</string>
+    <string name="action_cancel">انصراف</string>
+    <string name="action_share">اشتراک‌گذاری</string>
+    <string name="action_back">بازگشت</string>
+    <string name="action_edit">ویرایش</string>
+    <string name="action_save">ذخیره</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_delete_title">حذف یادداشت</string>
+    <string name="dialog_delete_message">آیا از حذف دائمی این یادداشت اطمینان دارید؟</string>
+
+    <!-- Sorting -->
+    <string name="sort_notes">مرتب‌سازی</string>
+    <string name="sort_recently_updated">آخرین تغییرات</string>
+    <string name="sort_oldest">قدیمی‌ترین</string>
+    <string name="sort_title_az">عنوان (الف-ی)</string>
+    <string name="sort_pinned_first">اول پین‌شده‌ها</string>
+
+    <!-- View Modes -->
+    <string name="view_mode_grid">نمای شبکه‌ای</string>
+    <string name="view_mode_list">نمای لیستی</string>
+
+    <!-- Editor -->
+    <string name="note_title_placeholder">عنوان</string>
+    <string name="note_body_placeholder">یادداشت...</string>
+    <string name="note_preview_empty">محتوایی برای پیش‌نمایش وجود ندارد</string>
+    <string name="checklist_add_item">افزودن مورد...</string>
+    <string name="more_items_count">+%1$d مورد دیگر</string>
+    <string name="word_count">%1$d کلمه</string>
+    <string name="checklist_done">%1$d از %2$d انجام شد</string>
+
+    <!-- Formatting Tools -->
+    <string name="tool_checklist">درج چک‌باکس</string>
+    <string name="tool_bullet">درج نشانه‌گذاری</string>
+    <string name="tool_numbered">لیست شماره‌دار</string>
+    <string name="tool_heading">درج سربرگ</string>
+    <string name="tool_bold">درج ضخیم</string>
+    <string name="tool_italic">درج مورب</string>
+    <string name="tool_strikethrough">درج خط‌خورده</string>
+    <string name="tool_code">درج کد</string>
+    <string name="tool_quote">درج نقل قول</string>
+    <string name="tool_table">درج جدول</string>
+    <string name="tool_horizontal_rule">درج خط جداکننده</string>
+    <string name="tool_link">درج پیوند</string>
+    <string name="tool_timestamp">درج تاریخ و زمان</string>
+    <string name="tool_preview">پیش‌نمایش مارک‌داون</string>
+    <string name="tool_edit">ویرایش یادداشت</string>
+    <string name="action_options">گزینه‌ها</string>
+    <string name="copy_code">کپی کد</string>
+    <string name="copied_to_clipboard">در حافظه کپی شد</string>
+    <string name="badge_encrypted">رمزنگاری‌شده</string>
+    <string name="badge_aes_256">AES-256</string>
+    <string name="untitled_note">یادداشت بدون عنوان</string>
+    <string name="encrypted_vault_note">یادداشت رمزنگاری‌شده</string>
+    <string name="encrypted_note_preview">🔒 محافظت‌شده با رمزنگاری ۲۵۶ بیتی AES-GCM.</string>
+</resources>
