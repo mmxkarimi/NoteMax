@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -105,11 +105,9 @@ fun NoteEditorScreen(
   Scaffold(
     modifier = modifier
       .fillMaxSize()
-      .background(MaterialTheme.colorScheme.background)
-      .statusBarsPadding()
-      .navigationBarsPadding()
       .imePadding()
       .testTag("note_editor_screen"),
+    contentWindowInsets = WindowInsets(0, 0, 0, 0),
     containerColor = MaterialTheme.colorScheme.background,
     snackbarHost = { SnackbarHost(snackbarHostState) },
     topBar = {
@@ -211,7 +209,7 @@ fun NoteEditorScreen(
     Box(
       modifier = Modifier
         .fillMaxSize()
-        .padding(innerPadding)
+        .padding(top = innerPadding.calculateTopPadding())
     ) {
       Column(
         modifier = Modifier
@@ -374,7 +372,9 @@ fun NoteEditorScreen(
           val now = SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault()).format(Date())
           content = "$content\n[$now]\n"
         },
-        modifier = Modifier.align(Alignment.BottomCenter)
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .navigationBarsPadding()
       )
     }
   }
