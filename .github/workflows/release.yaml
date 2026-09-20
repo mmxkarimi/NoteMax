@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      SIGNING_STORE_FILE: release.jks
+      SIGNING_STORE_FILE: app/release.jks
       SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
       SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
       SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -31,9 +31,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          version_count=$(grep -c '^VERSION_NAME=' gradle.properties || true)
           version=$(sed -n 's/^VERSION_NAME=//p' gradle.properties | tr -d '\r')
 
-          if [[ -z "$version" || "$version" == *$'\n'* ]]; then
+          if [[ "$version_count" != "1" || -z "$version" || "$version" == *$'\n'* ]]; then
             echo "::error::Expected exactly one nonempty VERSION_NAME in gradle.properties"
             exit 1
           fi
@@ -47,8 +49,14 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
+      - name: Set up Android SDK 36
         uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-36
+            build-tools;36.0.0
+          accept-android-sdk-licenses: true
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -59,14 +67,15 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
+
           : "${KEYSTORE_BASE64:?Missing ANDROID_KEYSTORE_BASE64}"
           : "${SIGNING_KEY_ALIAS:?Missing SIGNING_KEY_ALIAS}"
           : "${SIGNING_KEY_PASSWORD:?Missing SIGNING_KEY_PASSWORD}"
           : "${SIGNING_STORE_PASSWORD:?Missing SIGNING_STORE_PASSWORD}"
 
           umask 077
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > app/release.jks
-          test -s app/release.jks
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$SIGNING_STORE_FILE"
+          test -s "$SIGNING_STORE_FILE"
 
       - name: Build release APK
         run: bash ./gradlew --no-daemon assembleFossRelease
@@ -75,6 +84,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           shopt -s nullglob
           apks=(app/build/outputs/apk/foss/release/*release.apk)
 
@@ -99,4 +109,4 @@ jobs:
       - name: Remove signing keystore
         if: always()
         shell: bash
-        run: rm -f app/release.jks
+        run: rm -f "$SIGNING_STORE_FILE"
