@@ -75,7 +75,7 @@ jobs:
           test -s "$SIGNING_STORE_FILE"
 
       - name: Build release APK
-        run: bash ./gradlew --no-daemon assembleFossRelease
+        run: bash ./gradlew --no-daemon assembleRelease
 
       - name: Check release APK exists
         shell: bash
@@ -83,7 +83,7 @@ jobs:
           set -euo pipefail
 
           shopt -s nullglob
-          apks=(app/build/outputs/apk/foss/release/*release.apk)
+          apks=(app/build/outputs/apk/release/app-release.apk)
 
           if (( ${#apks[@]} == 0 )); then
             echo "::error::No release APK found"
@@ -101,7 +101,7 @@ jobs:
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
-          files: app/build/outputs/apk/foss/release/*release.apk
+          files: app/build/outputs/apk/release/app-release.apk
 
       - name: Remove signing keystore
         if: always()
