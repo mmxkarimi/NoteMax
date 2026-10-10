@@ -22,10 +22,18 @@ android {
 
   signingConfigs {
     create("release") {
-      val keystorePath =
-        System.getenv("SIGNING_STORE_FILE") ?: "${rootDir}/my-upload-key.jks"
+      // Resolve a relative SIGNING_STORE_FILE against the root project (not this
+      // module dir) so CI paths like "app/release.jks" point at the same file.
+      val keystoreEnv = System.getenv("SIGNING_STORE_FILE")
+      val keystoreFile =
+        if (keystoreEnv.isNullOrBlank()) {
+          File(rootDir, "my-upload-key.jks")
+        } else {
+          val envFile = File(keystoreEnv)
+          if (envFile.isAbsolute) envFile else rootProject.file(keystoreEnv)
+        }
 
-      storeFile = file(keystorePath)
+      storeFile = keystoreFile
       storePassword = System.getenv("SIGNING_STORE_PASSWORD")
       keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "upload"
       keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
