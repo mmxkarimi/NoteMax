@@ -20,10 +20,6 @@ Requires JDK 17+ and the Android SDK.
 
 The debug APK is output to `app/build/outputs/apk/debug/`.
 
-## Configuration
-
-Copy `.env.example` to `.env` and uncomment `GEMINI_API_KEY` if the app uses the Gemini API. The key is never packaged into release builds unless explicitly set.
-
 ## License
 
 See [LICENSE](LICENSE).

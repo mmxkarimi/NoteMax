@@ -30,14 +30,6 @@
     <string name="dialog_delete_title">Delete Note</string>
     <string name="dialog_delete_message">Are you sure you want to permanently delete this note?</string>
 
-    <!-- Sorting -->
-    <string name="sort_notes">Sort Notes</string>
-    <string name="sort_custom">Custom</string>
-    <string name="sort_recently_updated">Recently Updated</string>
-    <string name="sort_oldest">Oldest First</string>
-    <string name="sort_title_az">Title (A-Z)</string>
-    <string name="sort_pinned_first">Pinned First</string>
-
     <!-- View Modes -->
     <string name="view_mode_grid">Switch to grid view</string>
     <string name="view_mode_list">Switch to list view</string>
@@ -75,5 +67,4 @@
     <string name="untitled_note">Untitled Note</string>
     <string name="encrypted_vault_note">Encrypted Note</string>
     <string name="encrypted_note_preview">🔒 Protected with 256-bit AES-GCM encryption.</string>
-    <string name="drag_to_reorder">Drag to reorder</string>
 </resources>

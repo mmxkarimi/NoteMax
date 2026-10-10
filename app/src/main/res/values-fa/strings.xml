@@ -28,14 +28,6 @@
     <string name="dialog_delete_title">حذف یادداشت</string>
     <string name="dialog_delete_message">آیا از حذف دائمی این یادداشت اطمینان دارید؟</string>
 
-    <!-- Sorting -->
-    <string name="sort_notes">مرتب‌سازی</string>
-    <string name="sort_custom">سفارشی (دستی)</string>
-    <string name="sort_recently_updated">آخرین تغییرات</string>
-    <string name="sort_oldest">قدیمی‌ترین</string>
-    <string name="sort_title_az">عنوان (الف-ی)</string>
-    <string name="sort_pinned_first">اول پین‌شده‌ها</string>
-
     <!-- View Modes -->
     <string name="view_mode_grid">نمای شبکه‌ای</string>
     <string name="view_mode_list">نمای لیستی</string>
@@ -73,5 +65,4 @@
     <string name="untitled_note">یادداشت بدون عنوان</string>
     <string name="encrypted_vault_note">یادداشت رمزنگاری‌شده</string>
     <string name="encrypted_note_preview">🔒 محافظت‌شده با رمزنگاری ۲۵۶ بیتی AES-GCM.</string>
-    <string name="drag_to_reorder">بکشید برای مرتب‌سازی</string>
 </resources>

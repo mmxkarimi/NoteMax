@@ -21,12 +21,10 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -67,8 +65,6 @@ fun NoteCard(
   onToggleChecklistItem: ((Int) -> Unit)? = null,
   onUnlockRequest: () -> Unit = {},
   isDragging: Boolean = false,
-  canReorder: Boolean = true,
-  dragHandleModifier: Modifier = Modifier,
   modifier: Modifier = Modifier
 ) {
   var menuExpanded by remember { mutableStateOf(false) }
@@ -76,45 +72,16 @@ fun NoteCard(
   var isPermanentDelete by remember { mutableStateOf(false) }
 
   if (showDeleteConfirmDialog) {
-    AlertDialog(
-      onDismissRequest = { showDeleteConfirmDialog = false },
-      title = {
-        Text(
-          text = stringResource(R.string.dialog_delete_title),
-          fontWeight = FontWeight.Bold
-        )
-      },
-      text = {
-        Text(text = stringResource(R.string.dialog_delete_message))
-      },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            showDeleteConfirmDialog = false
-            if (isPermanentDelete) {
-              onDeletePermanently()
-            } else {
-              onRemove()
-            }
-          },
-          modifier = Modifier.testTag("confirm_delete_button")
-        ) {
-          Text(
-            text = stringResource(R.string.action_delete),
-            color = MaterialTheme.colorScheme.error,
-            fontWeight = FontWeight.Bold
-          )
+    CenteredDeleteConfirmDialog(
+      onConfirm = {
+        showDeleteConfirmDialog = false
+        if (isPermanentDelete) {
+          onDeletePermanently()
+        } else {
+          onRemove()
         }
       },
-      dismissButton = {
-        TextButton(
-          onClick = { showDeleteConfirmDialog = false },
-          modifier = Modifier.testTag("cancel_delete_button")
-        ) {
-          Text(text = stringResource(R.string.action_cancel))
-        }
-      },
-      modifier = Modifier.testTag("confirm_delete_dialog")
+      onDismiss = { showDeleteConfirmDialog = false }
     )
   }
 
@@ -159,23 +126,9 @@ fun NoteCard(
           color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
 
-        // Actions: Drag Handle, Pin, and Overflow
+        // Actions: Pin and Overflow (reordering is done by long-pressing the card)
         Row(verticalAlignment = Alignment.CenterVertically) {
           if (!note.isTrashed) {
-            // Drag indicator handle (only shown when custom sorting is enabled)
-            if (canReorder) {
-              Icon(
-                imageVector = Icons.Default.DragIndicator,
-                contentDescription = stringResource(R.string.drag_to_reorder),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.45f),
-                modifier = Modifier
-                  .size(32.dp)
-                  .then(dragHandleModifier)
-                  .padding(4.dp)
-                  .testTag("drag_handle_${note.id}")
-              )
-            }
-
             IconButton(
               onClick = onTogglePin,
               modifier = Modifier.size(32.dp)

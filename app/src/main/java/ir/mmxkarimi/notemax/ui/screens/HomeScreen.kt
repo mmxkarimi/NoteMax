@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,7 +77,6 @@ import ir.mmxkarimi.notemax.data.model.Note
 import ir.mmxkarimi.notemax.ui.components.NoteCard
 import ir.mmxkarimi.notemax.ui.components.UnifiedFloatingMenuBar
 import ir.mmxkarimi.notemax.ui.viewmodel.NotesUiState
-import ir.mmxkarimi.notemax.ui.viewmodel.SortOrder
 import ir.mmxkarimi.notemax.ui.viewmodel.ViewMode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,7 +84,6 @@ import ir.mmxkarimi.notemax.ui.viewmodel.ViewMode
 fun HomeScreen(
   uiState: NotesUiState,
   onToggleViewMode: () -> Unit,
-  onSortOrderSelected: (SortOrder) -> Unit,
   onNoteClick: (Note) -> Unit,
   onNewNote: () -> Unit,
   onTogglePin: (Note) -> Unit,
@@ -461,23 +458,6 @@ fun HomeScreen(
 
                 items(pinnedNotes, key = { "pinned_${it.id}" }) { note ->
                   val isDragging = note.id == draggingNoteId
-                  val dragHandleModifier = Modifier.pointerInput(note.id) {
-                    detectDragGestures(
-                      onDragStart = {
-                        draggingNoteId = note.id
-                        dragOffsetX = 0f
-                        dragOffsetY = 0f
-                      },
-                      onDrag = { change, dragAmount ->
-                        change.consume()
-                        dragOffsetX += dragAmount.x
-                        dragOffsetY += dragAmount.y
-                        handleReorder(note.id, dragOffsetY, dragOffsetX, true)
-                      },
-                      onDragEnd = { onDragFinished() },
-                      onDragCancel = { onDragFinished() }
-                    )
-                  }
                   val cardDragModifier = Modifier
                     .zIndex(if (isDragging) 10f else 0f)
                     .graphicsLayer {
@@ -515,7 +495,6 @@ fun HomeScreen(
                     onDeletePermanently = { onDeletePermanently(note) },
                     onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
                     isDragging = isDragging,
-                    dragHandleModifier = dragHandleModifier,
                     modifier = cardDragModifier
                   )
                 }
@@ -539,23 +518,6 @@ fun HomeScreen(
 
               items(listToRender, key = { "note_${it.id}" }) { note ->
                 val isDragging = note.id == draggingNoteId
-                val dragHandleModifier = Modifier.pointerInput(note.id) {
-                  detectDragGestures(
-                    onDragStart = {
-                      draggingNoteId = note.id
-                      dragOffsetX = 0f
-                      dragOffsetY = 0f
-                    },
-                    onDrag = { change, dragAmount ->
-                      change.consume()
-                      dragOffsetX += dragAmount.x
-                      dragOffsetY += dragAmount.y
-                      handleReorder(note.id, dragOffsetY, dragOffsetX, true)
-                    },
-                    onDragEnd = { onDragFinished() },
-                    onDragCancel = { onDragFinished() }
-                  )
-                }
                 val cardDragModifier = Modifier
                   .zIndex(if (isDragging) 10f else 0f)
                   .graphicsLayer {
@@ -593,7 +555,6 @@ fun HomeScreen(
                   onDeletePermanently = { onDeletePermanently(note) },
                   onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
                   isDragging = isDragging,
-                  dragHandleModifier = dragHandleModifier,
                   modifier = cardDragModifier
                 )
               }
@@ -609,23 +570,6 @@ fun HomeScreen(
             ) {
               items(currentNotes, key = { "list_${it.id}" }) { note ->
                 val isDragging = note.id == draggingNoteId
-                val dragHandleModifier = Modifier.pointerInput(note.id) {
-                  detectDragGestures(
-                    onDragStart = {
-                      draggingNoteId = note.id
-                      dragOffsetX = 0f
-                      dragOffsetY = 0f
-                    },
-                    onDrag = { change, dragAmount ->
-                      change.consume()
-                      dragOffsetX += dragAmount.x
-                      dragOffsetY += dragAmount.y
-                      handleReorder(note.id, dragOffsetY, dragOffsetX, false)
-                    },
-                    onDragEnd = { onDragFinished() },
-                    onDragCancel = { onDragFinished() }
-                  )
-                }
                 val cardDragModifier = Modifier
                   .zIndex(if (isDragging) 10f else 0f)
                   .graphicsLayer {
@@ -663,7 +607,6 @@ fun HomeScreen(
                   onDeletePermanently = { onDeletePermanently(note) },
                   onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
                   isDragging = isDragging,
-                  dragHandleModifier = dragHandleModifier,
                   modifier = cardDragModifier
                 )
               }
@@ -676,8 +619,6 @@ fun HomeScreen(
       UnifiedFloatingMenuBar(
         viewMode = uiState.viewMode,
         onToggleViewMode = onToggleViewMode,
-        sortOrder = uiState.sortOrder,
-        onSortOrderChanged = onSortOrderSelected,
         onSearchClick = { showSearchSheet = true },
         onCreateNote = onNewNote,
         modifier = Modifier.align(Alignment.BottomCenter)

@@ -15,48 +15,34 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ViewAgenda
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ir.mmxkarimi.notemax.R
-import ir.mmxkarimi.notemax.ui.viewmodel.SortOrder
 import ir.mmxkarimi.notemax.ui.viewmodel.ViewMode
 
 @Composable
 fun UnifiedFloatingMenuBar(
   viewMode: ViewMode,
   onToggleViewMode: () -> Unit,
-  sortOrder: SortOrder,
-  onSortOrderChanged: (SortOrder) -> Unit,
   onSearchClick: () -> Unit,
   onCreateNote: () -> Unit,
   modifier: Modifier = Modifier
 ) {
-  var sortMenuExpanded by remember { mutableStateOf(false) }
-
   Box(
     modifier = modifier
       .fillMaxWidth()
@@ -64,7 +50,7 @@ fun UnifiedFloatingMenuBar(
       .padding(bottom = 16.dp, start = 16.dp, end = 16.dp),
     contentAlignment = Alignment.BottomCenter
   ) {
-    // Streamlined Floating Pill Bar (ViewMode + Sort + Search + Add)
+    // Streamlined Floating Pill Bar (ViewMode + Search + Add)
     Surface(
       shape = RoundedCornerShape(32.dp),
       color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -105,45 +91,7 @@ fun UnifiedFloatingMenuBar(
           )
         }
 
-        // Sort Menu
-        Box {
-          IconButton(
-            onClick = { sortMenuExpanded = true },
-            modifier = Modifier
-              .size(42.dp)
-              .testTag("sort_menu_button")
-          ) {
-            Icon(
-              imageVector = Icons.AutoMirrored.Filled.Sort,
-              contentDescription = stringResource(R.string.sort_notes),
-              tint = MaterialTheme.colorScheme.onSurfaceVariant,
-              modifier = Modifier.size(21.dp)
-            )
-          }
-
-          DropdownMenu(
-            expanded = sortMenuExpanded,
-            onDismissRequest = { sortMenuExpanded = false }
-          ) {
-            SortOrder.entries.forEach { order ->
-              DropdownMenuItem(
-                text = {
-                  Text(
-                    text = stringResource(order.stringRes),
-                    fontWeight = if (order == sortOrder) FontWeight.Bold else FontWeight.Normal,
-                    color = if (order == sortOrder) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                  )
-                },
-                onClick = {
-                  onSortOrderChanged(order)
-                  sortMenuExpanded = false
-                }
-              )
-            }
-          }
-        }
-
-        // Search Button (Opens search dialog from bottom)
+        // Search Button
         IconButton(
           onClick = onSearchClick,
           modifier = Modifier
@@ -152,7 +100,7 @@ fun UnifiedFloatingMenuBar(
         ) {
           Icon(
             imageVector = Icons.Default.Search,
-            contentDescription = "Search",
+            contentDescription = stringResource(R.string.search_notes),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(21.dp)
           )

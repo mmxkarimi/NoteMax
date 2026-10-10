@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -62,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.mmxkarimi.notemax.R
 import ir.mmxkarimi.notemax.data.model.Note
+import ir.mmxkarimi.notemax.ui.components.CenteredDeleteConfirmDialog
 import ir.mmxkarimi.notemax.ui.components.EditorFloatingBar
 import ir.mmxkarimi.notemax.ui.components.MarkdownRenderer
 import java.text.SimpleDateFormat
@@ -125,45 +125,16 @@ fun NoteEditorScreen(
 
   // Delete Confirmation Dialog
   if (showDeleteConfirmDialog) {
-    AlertDialog(
-      onDismissRequest = { showDeleteConfirmDialog = false },
-      title = {
-        Text(
-          text = stringResource(R.string.dialog_delete_title),
-          fontWeight = FontWeight.Bold
-        )
-      },
-      text = {
-        Text(text = stringResource(R.string.dialog_delete_message))
-      },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            showDeleteConfirmDialog = false
-            if (initialNote != null) {
-              onDeleteNote(initialNote)
-            } else {
-              onNavigateBack()
-            }
-          },
-          modifier = Modifier.testTag("confirm_delete_button")
-        ) {
-          Text(
-            text = stringResource(R.string.action_delete),
-            color = MaterialTheme.colorScheme.error,
-            fontWeight = FontWeight.Bold
-          )
+    CenteredDeleteConfirmDialog(
+      onConfirm = {
+        showDeleteConfirmDialog = false
+        if (initialNote != null) {
+          onDeleteNote(initialNote)
+        } else {
+          onNavigateBack()
         }
       },
-      dismissButton = {
-        TextButton(
-          onClick = { showDeleteConfirmDialog = false },
-          modifier = Modifier.testTag("cancel_delete_button")
-        ) {
-          Text(text = stringResource(R.string.action_cancel))
-        }
-      },
-      modifier = Modifier.testTag("confirm_delete_dialog")
+      onDismiss = { showDeleteConfirmDialog = false }
     )
   }
 

@@ -3,9 +3,9 @@ package ir.mmxkarimi.notemax.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import ir.mmxkarimi.notemax.R
 import ir.mmxkarimi.notemax.data.model.ChecklistItem
 import ir.mmxkarimi.notemax.data.model.Note
+import ir.mmxkarimi.notemax.data.prefs.ViewModePrefs
 import ir.mmxkarimi.notemax.data.repository.NoteRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,14 +20,6 @@ enum class ViewMode {
   LIST
 }
 
-enum class SortOrder(val stringRes: Int) {
-  CUSTOM(R.string.sort_custom),
-  DATE_NEWEST(R.string.sort_recently_updated),
-  DATE_OLDEST(R.string.sort_oldest),
-  TITLE_AZ(R.string.sort_title_az),
-  PINNED_FIRST(R.string.sort_pinned_first)
-}
-
 data class NotesUiState(
   val activeNotes: List<Note> = emptyList(),
   val pinnedNotes: List<Note> = emptyList(),
@@ -35,39 +27,29 @@ data class NotesUiState(
   val archivedNotes: List<Note> = emptyList(),
   val trashedNotes: List<Note> = emptyList(),
   val viewMode: ViewMode = ViewMode.GRID,
-  val sortOrder: SortOrder = SortOrder.PINNED_FIRST,
   val totalActiveCount: Int = 0
 )
 
-class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
+class NotesViewModel(
+  private val repository: NoteRepository,
+  private val viewModePrefs: ViewModePrefs
+) : ViewModel() {
 
-  private val _viewMode = MutableStateFlow(ViewMode.GRID)
+  private val _viewMode = MutableStateFlow(viewModePrefs.loadViewMode())
   val viewMode: StateFlow<ViewMode> = _viewMode.asStateFlow()
-
-  private val _sortOrder = MutableStateFlow(SortOrder.PINNED_FIRST)
-  val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
 
   val uiState: StateFlow<NotesUiState> = combine(
     repository.allNotes,
-    _viewMode,
-    _sortOrder
-  ) { notes, mode, sort ->
+    _viewMode
+  ) { notes, mode ->
     val activeList = notes.filter { !it.isTrashed }
     val archivedList = emptyList<Note>()
     val trashedList = notes.filter { it.isTrashed }
 
-    // Sort items
-    val sorted = when (sort) {
-      SortOrder.CUSTOM -> activeList.sortedWith(
-        compareByDescending<Note> { it.isPinned }.thenBy { it.orderIndex }.thenByDescending { it.updatedAt }
-      )
-      SortOrder.DATE_NEWEST -> activeList.sortedByDescending { it.updatedAt }
-      SortOrder.DATE_OLDEST -> activeList.sortedBy { it.updatedAt }
-      SortOrder.TITLE_AZ -> activeList.sortedBy { it.title.lowercase() }
-      SortOrder.PINNED_FIRST -> activeList.sortedWith(
-        compareByDescending<Note> { it.isPinned }.thenByDescending { it.updatedAt }
-      )
-    }
+    // Fixed ordering: pinned first, then the user's manually arranged order.
+    val sorted = activeList.sortedWith(
+      compareByDescending<Note> { it.isPinned }.thenBy { it.orderIndex }.thenByDescending { it.updatedAt }
+    )
 
     val pinned = sorted.filter { it.isPinned }
     val unpinned = sorted.filter { !it.isPinned }
@@ -79,7 +61,6 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
       archivedNotes = archivedList,
       trashedNotes = trashedList,
       viewMode = mode,
-      sortOrder = sort,
       totalActiveCount = activeList.size
     )
   }.stateIn(
@@ -89,11 +70,9 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
   )
 
   fun toggleViewMode() {
-    _viewMode.value = if (_viewMode.value == ViewMode.GRID) ViewMode.LIST else ViewMode.GRID
-  }
-
-  fun setSortOrder(order: SortOrder) {
-    _sortOrder.value = order
+    val next = if (_viewMode.value == ViewMode.GRID) ViewMode.LIST else ViewMode.GRID
+    _viewMode.value = next
+    viewModePrefs.saveViewMode(next)
   }
 
   fun togglePin(note: Note) {
@@ -181,11 +160,14 @@ class NotesViewModel(private val repository: NoteRepository) : ViewModel() {
   }
 }
 
-class NotesViewModelFactory(private val repository: NoteRepository) : ViewModelProvider.Factory {
+class NotesViewModelFactory(
+  private val repository: NoteRepository,
+  private val viewModePrefs: ViewModePrefs
+) : ViewModelProvider.Factory {
   @Suppress("UNCHECKED_CAST")
   override fun <T : ViewModel> create(modelClass: Class<T>): T {
     if (modelClass.isAssignableFrom(NotesViewModel::class.java)) {
-      return NotesViewModel(repository) as T
+      return NotesViewModel(repository, viewModePrefs) as T
     }
     throw IllegalArgumentException("Unknown ViewModel class")
   }

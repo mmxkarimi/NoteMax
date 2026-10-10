@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import ir.mmxkarimi.notemax.data.db.AppDatabase
 import ir.mmxkarimi.notemax.data.model.Note
+import ir.mmxkarimi.notemax.data.prefs.ViewModePrefs
 import ir.mmxkarimi.notemax.data.repository.NoteRepository
 import ir.mmxkarimi.notemax.ui.screens.HomeScreen
 import ir.mmxkarimi.notemax.ui.screens.NoteEditorScreen
@@ -40,8 +41,9 @@ class MainActivity : ComponentActivity() {
 
   private val database by lazy { AppDatabase.getInstance(applicationContext) }
   private val repository by lazy { NoteRepository(database.noteDao()) }
+  private val viewModePrefs by lazy { ViewModePrefs.getInstance(applicationContext) }
   private val viewModel: NotesViewModel by viewModels {
-    NotesViewModelFactory(repository)
+    NotesViewModelFactory(repository, viewModePrefs)
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,7 +89,6 @@ class MainActivity : ComponentActivity() {
           HomeScreen(
             uiState = uiState,
             onToggleViewMode = { viewModel.toggleViewMode() },
-            onSortOrderSelected = { viewModel.setSortOrder(it) },
             onNoteClick = { note ->
               currentScreen = Screen.Editor(note)
             },
