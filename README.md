@@ -1,6 +1,6 @@
 # NoteMax
 
-An expressive Material 3 dynamic-color note-taking app for Android, built with Kotlin and Jetpack Compose.
+An  Material 3 dynamic-color note-taking app for Android, built with Kotlin and Jetpack Compose.
 
 ## Features
 
