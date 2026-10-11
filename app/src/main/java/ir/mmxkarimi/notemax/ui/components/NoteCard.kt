@@ -88,7 +88,6 @@ fun NoteCard(
   Card(
     modifier = modifier
       .fillMaxWidth()
-      .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
       .clip(RoundedCornerShape(20.dp))
       .clickable { onClick() }
       .testTag("note_card_${note.id}"),
@@ -110,7 +109,6 @@ fun NoteCard(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
         .padding(16.dp)
     ) {
       // Top Row: Pin and Actions
@@ -283,7 +281,7 @@ fun NoteCard(
               )
               Spacer(modifier = Modifier.width(6.dp))
               Text(
-                text = item.text,
+                text = renderInlineMarkdown(item.text),
                 style = MaterialTheme.typography.bodyMedium.copy(
                   fontSize = 13.sp,
                   textDirection = TextDirection.ContentOrLtr,
@@ -306,16 +304,9 @@ fun NoteCard(
           }
         }
       } else if (note.content.isNotBlank()) {
-        Text(
-          text = note.content,
-          style = MaterialTheme.typography.bodyMedium.copy(
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            textDirection = TextDirection.ContentOrLtr
-          ),
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          maxLines = 5,
-          overflow = TextOverflow.Ellipsis
+        MarkdownPreview(
+          markdownText = note.content,
+          maxLines = 5
         )
       }
 

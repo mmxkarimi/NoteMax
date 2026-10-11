@@ -87,23 +87,39 @@ fun NoteEditorScreen(
     mutableStateOf(TextFieldValue(text = initialNote?.content ?: ""))
   }
   var isPinned by remember { mutableStateOf(initialNote?.isPinned ?: false) }
-  var isPreviewMode by remember { mutableStateOf(false) }
+  var isPreviewMode by remember(initialNote?.id) {
+    mutableStateOf(initialNote != null && initialNote.id != 0L)
+  }
   var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
   fun saveCurrentNote() {
     val trimmedTitle = title.trim()
     val trimmedContent = contentTextFieldValue.text.trim()
+    val isNewNote = initialNote == null || initialNote.id == 0L
 
     // If both title and content are blank:
     if (trimmedTitle.isBlank() && trimmedContent.isBlank()) {
-      if (initialNote != null && initialNote.id != 0L) {
+      if (!isNewNote) {
         // If an existing note was edited to be completely empty, delete/trash it
-        onDeleteNote(initialNote)
+        onDeleteNote(initialNote!!)
       } else {
         // For a new note with no content, simply discard and navigate back without saving
         onNavigateBack()
       }
       return
+    }
+
+    // If an existing note was opened and left without any changes:
+    if (!isNewNote) {
+      val hasChanged = trimmedTitle != initialNote!!.title.trim() ||
+        trimmedContent != initialNote.content.trim() ||
+        isPinned != initialNote.isPinned
+
+      if (!hasChanged) {
+        // No changes made: do not change date or save
+        onNavigateBack()
+        return
+      }
     }
 
     val noteToSave = (initialNote ?: Note()).copy(
@@ -444,36 +460,54 @@ fun NoteEditorScreen(
           .padding(horizontal = 18.dp)
           .padding(bottom = 96.dp)
       ) {
-        // Title Input
-        BasicTextField(
-          value = title,
-          onValueChange = { title = it },
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp)
-            .testTag("note_title_input"),
-          textStyle = TextStyle(
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textDirection = TextDirection.ContentOrLtr
-          ),
-          cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-          decorationBox = { innerTextField ->
-            if (title.isEmpty()) {
-              Text(
-                text = stringResource(R.string.note_title_placeholder),
-                style = TextStyle(
-                  fontSize = 24.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                  textDirection = TextDirection.ContentOrLtr
-                )
+        // Title Input or Display
+        if (isPreviewMode) {
+          if (title.isNotBlank()) {
+            Text(
+              text = title,
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp)
+                .testTag("note_title_text"),
+              style = TextStyle(
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textDirection = TextDirection.ContentOrLtr
               )
-            }
-            innerTextField()
+            )
           }
-        )
+        } else {
+          BasicTextField(
+            value = title,
+            onValueChange = { title = it },
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 10.dp)
+              .testTag("note_title_input"),
+            textStyle = TextStyle(
+              fontSize = 24.sp,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurface,
+              textDirection = TextDirection.ContentOrLtr
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorationBox = { innerTextField ->
+              if (title.isEmpty()) {
+                Text(
+                  text = stringResource(R.string.note_title_placeholder),
+                  style = TextStyle(
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    textDirection = TextDirection.ContentOrLtr
+                  )
+                )
+              }
+              innerTextField()
+            }
+          )
+        }
 
         HorizontalDivider(
           color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),

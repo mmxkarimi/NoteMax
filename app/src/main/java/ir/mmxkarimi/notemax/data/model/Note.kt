@@ -39,13 +39,13 @@ data class Note(
   val formattedDate: String
     get() {
       val sdf = SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault())
-      return sdf.format(Date(updatedAt))
+      return sdf.format(Date(createdAt))
     }
 
   val formattedDateShort: String
     get() {
       val sdf = SimpleDateFormat("MMM d", Locale.getDefault())
-      return sdf.format(Date(updatedAt))
+      return sdf.format(Date(createdAt))
     }
 
   val checklistProgress: Pair<Int, Int>?

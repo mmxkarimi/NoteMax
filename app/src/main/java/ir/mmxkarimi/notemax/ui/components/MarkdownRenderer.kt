@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -348,9 +349,270 @@ fun MarkdownRenderer(
 }
 
 /**
+ * Compact Markdown Preview suitable for note cards and search results.
+ */
+@Composable
+fun MarkdownPreview(
+  markdownText: String,
+  modifier: Modifier = Modifier,
+  maxLines: Int = 5
+) {
+  if (markdownText.isBlank()) return
+
+  val lines = markdownText.lines().filter { it.isNotBlank() }.take(maxLines)
+
+  Column(
+    modifier = modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(3.dp)
+  ) {
+    lines.forEach { rawLine ->
+      val trimmed = rawLine.trim()
+      when {
+        // Divider line
+        trimmed == "---" || trimmed == "***" || trimmed == "___" -> {
+          HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+            modifier = Modifier.padding(vertical = 2.dp)
+          )
+        }
+
+        // Heading 1
+        trimmed.startsWith("# ") -> {
+          Text(
+            text = renderInlineMarkdown(trimmed.removePrefix("# ")),
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.Bold,
+              fontSize = 14.sp,
+              color = MaterialTheme.colorScheme.onSurface,
+              textDirection = TextDirection.ContentOrLtr
+            ),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+
+        // Heading 2
+        trimmed.startsWith("## ") -> {
+          Text(
+            text = renderInlineMarkdown(trimmed.removePrefix("## ")),
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.Bold,
+              fontSize = 13.5.sp,
+              color = MaterialTheme.colorScheme.onSurface,
+              textDirection = TextDirection.ContentOrLtr
+            ),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+
+        // Heading 3
+        trimmed.startsWith("### ") -> {
+          Text(
+            text = renderInlineMarkdown(trimmed.removePrefix("### ")),
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.SemiBold,
+              fontSize = 13.sp,
+              color = MaterialTheme.colorScheme.onSurface,
+              textDirection = TextDirection.ContentOrLtr
+            ),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+
+        // Checklist Item (uncompleted)
+        trimmed.startsWith("- [ ] ") || trimmed.startsWith("* [ ] ") -> {
+          val itemText = trimmed.substring(6)
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Icon(
+              imageVector = Icons.Default.CheckBoxOutlineBlank,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+              text = renderInlineMarkdown(itemText),
+              style = TextStyle(
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                textDirection = TextDirection.ContentOrLtr
+              ),
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+
+        // Checklist Item (completed)
+        trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") ||
+          trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> {
+          val itemText = trimmed.substring(6)
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Icon(
+              imageVector = Icons.Default.CheckBox,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+              text = renderInlineMarkdown(itemText),
+              style = TextStyle(
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                textDecoration = TextDecoration.LineThrough,
+                textDirection = TextDirection.ContentOrLtr
+              ),
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+
+        // Bullet Item
+        trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+          val itemText = trimmed.substring(2)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+          ) {
+            Box(
+              modifier = Modifier
+                .padding(top = 6.dp)
+                .size(5.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+              text = renderInlineMarkdown(itemText),
+              style = TextStyle(
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textDirection = TextDirection.ContentOrLtr
+              ),
+              maxLines = 2,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+
+        // Numbered Item
+        trimmed.matches("^\\d+\\.\\s.*".toRegex()) -> {
+          val dotIndex = trimmed.indexOf(". ")
+          val num = trimmed.substring(0, dotIndex + 1)
+          val itemText = trimmed.substring(dotIndex + 2)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+          ) {
+            Text(
+              text = num,
+              style = TextStyle(
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+              ),
+              modifier = Modifier.width(18.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+              text = renderInlineMarkdown(itemText),
+              style = TextStyle(
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textDirection = TextDirection.ContentOrLtr
+              ),
+              maxLines = 2,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+
+        // Quote Block
+        trimmed.startsWith("> ") -> {
+          val quoteText = trimmed.removePrefix("> ")
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Box(
+              modifier = Modifier
+                .width(3.dp)
+                .height(16.dp)
+                .clip(RoundedCornerShape(1.5.dp))
+                .background(MaterialTheme.colorScheme.primary)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+              text = renderInlineMarkdown(quoteText),
+              style = TextStyle(
+                fontSize = 13.sp,
+                fontStyle = FontStyle.Italic,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textDirection = TextDirection.ContentOrLtr
+              ),
+              maxLines = 2,
+              overflow = TextOverflow.Ellipsis
+            )
+          }
+        }
+
+        // Code block line / fence
+        trimmed.startsWith("```") -> {
+          val codeText = trimmed.removePrefix("```").trim()
+          if (codeText.isNotBlank()) {
+            Surface(
+              shape = RoundedCornerShape(4.dp),
+              color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Text(
+                text = codeText,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(4.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+            }
+          }
+        }
+
+        // Standard Paragraph
+        else -> {
+          Text(
+            text = renderInlineMarkdown(rawLine),
+            style = TextStyle(
+              fontSize = 13.sp,
+              lineHeight = 18.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              textDirection = TextDirection.ContentOrLtr
+            ),
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+      }
+    }
+  }
+}
+
+/**
  * Parses basic inline markdown: **bold**, *italic*, ~~strikethrough~~, `code`, and [text](link)
  */
-private fun renderInlineMarkdown(text: String) = buildAnnotatedString {
+fun renderInlineMarkdown(text: String) = buildAnnotatedString {
   var i = 0
   val len = text.length
 
