@@ -1,5 +1,6 @@
 package ir.mmxkarimi.notemax.ui.screens
 
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
