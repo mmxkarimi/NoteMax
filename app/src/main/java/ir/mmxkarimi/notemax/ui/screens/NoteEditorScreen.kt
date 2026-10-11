@@ -343,17 +343,7 @@ fun NoteEditorScreen(
     snackbarHost = { SnackbarHost(snackbarHostState) },
     topBar = {
       TopAppBar(
-        title = {
-          Text(
-            text = if (title.isNotBlank()) title else stringResource(R.string.action_note),
-            style = MaterialTheme.typography.titleMedium.copy(
-              fontWeight = FontWeight.Bold,
-              fontSize = 17.sp
-            ),
-            maxLines = 1,
-            color = MaterialTheme.colorScheme.onSurface
-          )
-        },
+        title = {},
         navigationIcon = {
           IconButton(
             onClick = { saveCurrentNote() },
@@ -544,7 +534,9 @@ fun NoteEditorScreen(
         } else {
           BasicTextField(
             value = contentTextFieldValue,
-            onValueChange = { contentTextFieldValue = it },
+            onValueChange = {
+              contentTextFieldValue = handleEditorContentChange(it, contentTextFieldValue)
+            },
             modifier = Modifier
               .fillMaxWidth()
               .focusRequester(contentFocusRequester)
@@ -686,3 +678,102 @@ fun NoteEditorScreen(
     }
   }
 }
+
+private val editorChecklistRegex = Regex("""^(\s*)([-*]\s*\[[ xX]\]\s*)(.*)$""")
+private val editorNumberedRegex = Regex("""^(\s*)(\d+)\.\s+(.*)$""")
+private val editorBulletRegex = Regex("""^(\s*)([-*])\s+(.*)$""")
+
+internal fun handleEditorContentChange(newVal: TextFieldValue, oldVal: TextFieldValue): TextFieldValue {
+  val oldSelMin = oldVal.selection.min
+  val oldSelMax = oldVal.selection.max
+  val expectedLengthWithEnter = oldVal.text.length - (oldSelMax - oldSelMin) + 1
+
+  val isEnterPressed = newVal.text.length == expectedLengthWithEnter &&
+    newVal.selection.isCollapsed &&
+    newVal.selection.start > 0 &&
+    newVal.text[newVal.selection.start - 1] == '\n'
+
+  if (!isEnterPressed) {
+    return newVal
+  }
+
+  val newlinePos = newVal.selection.start - 1
+  val lineStart = newVal.text.lastIndexOf('\n', newlinePos - 1).let { if (it == -1) 0 else it + 1 }
+  val currentLine = newVal.text.substring(lineStart, newlinePos)
+
+  // 1. Checklist
+  val checkMatch = editorChecklistRegex.find(currentLine)
+  if (checkMatch != null) {
+    val indent = checkMatch.groupValues[1]
+    val content = checkMatch.groupValues[3]
+    if (content.isBlank()) {
+      // Empty checklist item: exit checklist
+      val after = newVal.text.substring(newlinePos + 1)
+      val newText = if (after.isEmpty()) {
+        newVal.text.substring(0, lineStart) + indent
+      } else {
+        newVal.text.substring(0, lineStart) + indent + "\n" + after
+      }
+      val newCursor = lineStart + indent.length
+      return TextFieldValue(text = newText, selection = TextRange(newCursor))
+    } else {
+      // Create new unchecked checklist item on next line
+      val nextPrefix = "$indent- [ ] "
+      val newText = newVal.text.substring(0, newlinePos + 1) + nextPrefix + newVal.text.substring(newlinePos + 1)
+      val newCursor = newlinePos + 1 + nextPrefix.length
+      return TextFieldValue(text = newText, selection = TextRange(newCursor))
+    }
+  }
+
+  // 2. Numbered list
+  val numMatch = editorNumberedRegex.find(currentLine)
+  if (numMatch != null) {
+    val indent = numMatch.groupValues[1]
+    val numStr = numMatch.groupValues[2]
+    val content = numMatch.groupValues[3]
+    if (content.isBlank()) {
+      // Empty numbered item: exit numbered list
+      val after = newVal.text.substring(newlinePos + 1)
+      val newText = if (after.isEmpty()) {
+        newVal.text.substring(0, lineStart) + indent
+      } else {
+        newVal.text.substring(0, lineStart) + indent + "\n" + after
+      }
+      val newCursor = lineStart + indent.length
+      return TextFieldValue(text = newText, selection = TextRange(newCursor))
+    } else {
+      val nextNum = (numStr.toLongOrNull() ?: 1L) + 1L
+      val nextPrefix = "$indent$nextNum. "
+      val newText = newVal.text.substring(0, newlinePos + 1) + nextPrefix + newVal.text.substring(newlinePos + 1)
+      val newCursor = newlinePos + 1 + nextPrefix.length
+      return TextFieldValue(text = newText, selection = TextRange(newCursor))
+    }
+  }
+
+  // 3. Bullet list
+  val bulletMatch = editorBulletRegex.find(currentLine)
+  if (bulletMatch != null) {
+    val indent = bulletMatch.groupValues[1]
+    val bulletChar = bulletMatch.groupValues[2]
+    val content = bulletMatch.groupValues[3]
+    if (content.isBlank()) {
+      // Empty bullet item: exit bullet list
+      val after = newVal.text.substring(newlinePos + 1)
+      val newText = if (after.isEmpty()) {
+        newVal.text.substring(0, lineStart) + indent
+      } else {
+        newVal.text.substring(0, lineStart) + indent + "\n" + after
+      }
+      val newCursor = lineStart + indent.length
+      return TextFieldValue(text = newText, selection = TextRange(newCursor))
+    } else {
+      val nextPrefix = "$indent$bulletChar "
+      val newText = newVal.text.substring(0, newlinePos + 1) + nextPrefix + newVal.text.substring(newlinePos + 1)
+      val newCursor = newlinePos + 1 + nextPrefix.length
+      return TextFieldValue(text = newText, selection = TextRange(newCursor))
+    }
+  }
+
+  return newVal
+}
+

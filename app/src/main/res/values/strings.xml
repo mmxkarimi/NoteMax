@@ -4,6 +4,9 @@
     <string name="no_notes_description">Tap + to create your first note or checklist</string>
     <string name="search_notes">Search notes</string>
     <string name="search_notes_placeholder">Search notes and content...</string>
+    <string name="search_clear">Clear search</string>
+    <string name="search_recent_notes">RECENT NOTES (%1$d)</string>
+    <string name="search_results_count">SEARCH RESULTS (%1$d)</string>
     <string name="no_search_results">No matching notes found</string>
     <string name="no_search_results_description">Try searching for another keyword</string>
     <string name="pinned_section">PINNED</string>

@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,12 +44,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.mmxkarimi.notemax.R
@@ -241,16 +244,18 @@ fun NoteCard(
 
       // Title
       if (note.title.isNotBlank()) {
+        val isTitleRtl = isRtlText(note.title)
         Text(
           text = note.title,
           style = MaterialTheme.typography.titleMedium.copy(
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
-            textDirection = TextDirection.ContentOrLtr
+            textDirection = if (isTitleRtl) TextDirection.Rtl else TextDirection.Ltr
           ),
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 2,
-          overflow = TextOverflow.Ellipsis
+          overflow = TextOverflow.Ellipsis,
+          modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(4.dp))
       }
@@ -259,48 +264,57 @@ fun NoteCard(
       val parsedChecklist = Note.parseChecklist(note.content)
       if (parsedChecklist.isNotEmpty()) {
         Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(),
+          modifier = Modifier.fillMaxWidth(),
           verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
           parsedChecklist.take(4).forEachIndexed { idx, item ->
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
-                .clickable { onToggleChecklistItem?.invoke(idx) }
-                .padding(vertical = 1.dp)
+            val isRtl = isRtlText(item.text)
+            CompositionLocalProvider(
+              LocalLayoutDirection provides if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
             ) {
-              Icon(
-                imageVector = if (item.isChecked) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                contentDescription = null,
-                tint = if (item.isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
-              )
-              Spacer(modifier = Modifier.width(6.dp))
-              Text(
-                text = renderInlineMarkdown(item.text),
-                style = MaterialTheme.typography.bodyMedium.copy(
-                  fontSize = 13.sp,
-                  textDirection = TextDirection.ContentOrLtr,
-                  textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
-                ),
-                color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clip(RoundedCornerShape(6.dp))
+                  .clickable { onToggleChecklistItem?.invoke(idx) }
+                  .padding(vertical = 1.dp)
+              ) {
+                Icon(
+                  imageVector = if (item.isChecked) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                  contentDescription = null,
+                  tint = if (item.isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                  modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                  text = renderInlineMarkdown(item.text),
+                  style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 13.sp,
+                    textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
+                    textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
+                  ),
+                  color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
+                  modifier = Modifier.weight(1f)
+                )
+              }
             }
           }
 
           if (parsedChecklist.size > 4) {
-            Text(
-              text = stringResource(R.string.more_items_count, parsedChecklist.size - 4),
-              style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-              color = MaterialTheme.colorScheme.primary,
-              modifier = Modifier.padding(start = 24.dp, top = 2.dp)
-            )
+            val isRtl = parsedChecklist.any { isRtlText(it.text) }
+            CompositionLocalProvider(
+              LocalLayoutDirection provides if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+            ) {
+              Text(
+                text = stringResource(R.string.more_items_count, parsedChecklist.size - 4),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp)
+              )
+            }
           }
         }
       } else if (note.content.isNotBlank()) {

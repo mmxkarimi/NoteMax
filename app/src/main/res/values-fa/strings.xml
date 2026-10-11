@@ -2,6 +2,11 @@
     <string name="app_name">نوت‌مکس</string>
     <string name="no_notes_yet">هنوز یادداشتی وجود ندارد</string>
     <string name="no_notes_description">برای ایجاد اولین یادداشت یا چک‌لیست، دکمه + را بزنید</string>
+    <string name="search_notes">جستجوی یادداشت‌ها</string>
+    <string name="search_notes_placeholder">جستجو در یادداشت‌ها و محتوا...</string>
+    <string name="search_clear">پاک کردن</string>
+    <string name="search_recent_notes">یادداشت‌های اخیر (%1$d)</string>
+    <string name="search_results_count">نتایج جستجو (%1$d)</string>
     <string name="no_search_results">یادداشتی یافت نشد</string>
     <string name="no_search_results_description">کلمه دیگری را جستجو کنید</string>
     <string name="pinned_section">پین شده</string>
