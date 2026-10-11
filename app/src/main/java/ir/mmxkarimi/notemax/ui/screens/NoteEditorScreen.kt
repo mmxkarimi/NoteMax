@@ -689,7 +689,7 @@ internal fun handleEditorContentChange(newVal: TextFieldValue, oldVal: TextField
   val expectedLengthWithEnter = oldVal.text.length - (oldSelMax - oldSelMin) + 1
 
   val isEnterPressed = newVal.text.length == expectedLengthWithEnter &&
-    newVal.selection.isCollapsed &&
+    newVal.selection.collapsed &&
     newVal.selection.start > 0 &&
     newVal.text[newVal.selection.start - 1] == '\n'
 
