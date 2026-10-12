@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -38,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,9 +52,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -81,6 +86,9 @@ fun NoteEditorScreen(
   val snackbarHostState = remember { SnackbarHostState() }
   val contentFocusRequester = remember { FocusRequester() }
   val keyboardController = LocalSoftwareKeyboardController.current
+  val bringIntoViewRequester = remember { BringIntoViewRequester() }
+  var contentLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+  val density = LocalDensity.current
 
   var title by remember { mutableStateOf(initialNote?.title ?: "") }
   var contentTextFieldValue by remember {
@@ -132,6 +140,19 @@ fun NoteEditorScreen(
       updatedAt = System.currentTimeMillis()
     )
     onSaveAndClose(noteToSave)
+  }
+
+  // Keep the cursor visible while typing or adding a new line
+  LaunchedEffect(contentTextFieldValue.selection, contentLayout) {
+    val layout = contentLayout ?: return@LaunchedEffect
+    val textLength = layout.layoutInput.text.length
+    val cursor = contentTextFieldValue.selection.end.coerceIn(0, textLength)
+    val cursorRect = layout.getCursorRect(cursor)
+    // Extra space below the cursor so the floating bar does not cover it
+    val extraBottom = with(density) { 72.dp.toPx() }
+    bringIntoViewRequester.bringIntoView(
+      cursorRect.copy(bottom = cursorRect.bottom + extraBottom)
+    )
   }
 
   // Handle system back navigation
@@ -537,8 +558,10 @@ fun NoteEditorScreen(
             onValueChange = {
               contentTextFieldValue = handleEditorContentChange(it, contentTextFieldValue)
             },
+            onTextLayout = { contentLayout = it },
             modifier = Modifier
               .fillMaxWidth()
+              .bringIntoViewRequester(bringIntoViewRequester)
               .focusRequester(contentFocusRequester)
               .testTag("note_content_input"),
             textStyle = TextStyle(
@@ -776,4 +799,3 @@ internal fun handleEditorContentChange(newVal: TextFieldValue, oldVal: TextField
 
   return newVal
 }
-
