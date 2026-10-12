@@ -1,12 +1,15 @@
 package ir.mmxkarimi.notemax.ui.screens
 
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -59,36 +60,29 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.IntOffset
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import ir.mmxkarimi.notemax.R
 import ir.mmxkarimi.notemax.data.model.Note
 import ir.mmxkarimi.notemax.ui.components.MarkdownPreview
@@ -96,6 +90,9 @@ import ir.mmxkarimi.notemax.ui.components.NoteCard
 import ir.mmxkarimi.notemax.ui.components.UnifiedFloatingMenuBar
 import ir.mmxkarimi.notemax.ui.viewmodel.NotesUiState
 import ir.mmxkarimi.notemax.ui.viewmodel.ViewMode
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,47 +114,167 @@ fun HomeScreen(
   val gridState = rememberLazyStaggeredGridState()
   val listState = rememberLazyListState()
   val haptics = LocalHapticFeedback.current
+  val density = LocalDensity.current
+  val latestUiState by rememberUpdatedState(uiState)
 
   var showSearchSheet by remember { mutableStateOf(false) }
   var searchQuery by remember { mutableStateOf("") }
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-  // Drag and Drop reordering state
+  // ---------------------------------------------------------------------------------------------
+  // Drag and drop reordering
+  //
+  // The dragged card's position is kept as an ABSOLUTE position ([dragBase], top-left corner in the
+  // lazy layout's coordinate space). The visual translation is always derived from it:
+  //
+  //     translation = (dragBase - currentLayoutPosition) * settleFraction
+  //
+  // That means we never have to patch offsets by hand when the list reorders, when the grid
+  // re-flows (staggered grids change lanes/heights after a move), or when auto-scroll moves the
+  // content. The card simply stays under the finger.
+  // ---------------------------------------------------------------------------------------------
   var draggingNoteId by remember { mutableStateOf<Long?>(null) }
   // True after the finger lifts, while the card is still gliding into its slot.
   var isDragReleased by remember { mutableStateOf(false) }
-  var dragOffsetX by remember { mutableFloatStateOf(0f) }
-  var dragOffsetY by remember { mutableFloatStateOf(0f) }
+  var dragBase by remember { mutableStateOf(Offset.Zero) }
+  // 1 = card is where the finger put it, 0 = card sits exactly in its layout slot.
+  var settleFraction by remember { mutableFloatStateOf(1f) }
   var settleJob by remember { mutableStateOf<Job?>(null) }
-  var localNotes by remember(uiState.activeNotes) { mutableStateOf(uiState.activeNotes) }
+  var localNotes by remember { mutableStateOf(uiState.activeNotes) }
+  var externalChangeWhileDragging by remember { mutableStateOf(false) }
+  val swapGuard = remember { SwapGuard() }
   val isGridMode = uiState.viewMode == ViewMode.GRID
 
+  // Never replace the working list while a drag is in progress.
   LaunchedEffect(uiState.activeNotes) {
     if (draggingNoteId == null) {
       localNotes = uiState.activeNotes
+    } else {
+      externalChangeWhileDragging = true
+    }
+  }
+
+  val edgeZonePx = with(density) { 72.dp.toPx() }
+  val maxScrollPerFramePx = with(density) { 10.dp.toPx() }
+
+  // --- Layout access ---------------------------------------------------------------------------
+
+  fun allBoxes(): List<ItemBox> =
+    if (isGridMode) {
+      gridState.layoutInfo.visibleItemsInfo.map {
+        ItemBox(
+          key = it.key,
+          index = it.index,
+          topLeft = Offset(it.offset.x.toFloat(), it.offset.y.toFloat()),
+          size = Size(it.size.width.toFloat(), it.size.height.toFloat())
+        )
+      }
+    } else {
+      val info = listState.layoutInfo
+      info.visibleItemsInfo.map {
+        ItemBox(
+          key = it.key,
+          index = it.index,
+          topLeft = Offset(0f, it.offset.toFloat()),
+          size = Size(info.viewportSize.width.toFloat(), it.size.toFloat())
+        )
+      }
+    }
+
+  fun findBox(noteId: Long): ItemBox? {
+    if (isGridMode) {
+      for (it in gridState.layoutInfo.visibleItemsInfo) {
+        if (noteIdFromKey(it.key) == noteId) {
+          return ItemBox(
+            key = it.key,
+            index = it.index,
+            topLeft = Offset(it.offset.x.toFloat(), it.offset.y.toFloat()),
+            size = Size(it.size.width.toFloat(), it.size.height.toFloat())
+          )
+        }
+      }
+    } else {
+      val info = listState.layoutInfo
+      for (it in info.visibleItemsInfo) {
+        if (noteIdFromKey(it.key) == noteId) {
+          return ItemBox(
+            key = it.key,
+            index = it.index,
+            topLeft = Offset(0f, it.offset.toFloat()),
+            size = Size(info.viewportSize.width.toFloat(), it.size.toFloat())
+          )
+        }
+      }
+    }
+    return null
+  }
+
+  fun viewportStartEnd(): Pair<Float, Float> =
+    if (isGridMode) {
+      val info = gridState.layoutInfo
+      info.viewportStartOffset.toFloat() to info.viewportEndOffset.toFloat()
+    } else {
+      val info = listState.layoutInfo
+      info.viewportStartOffset.toFloat() to info.viewportEndOffset.toFloat()
+    }
+
+  val dragTranslation: (Long) -> Offset = { noteId ->
+    val box = findBox(noteId)
+    if (box == null) Offset.Zero else (dragBase - box.topLeft) * settleFraction
+  }
+
+  // --- Reordering ------------------------------------------------------------------------------
+
+  /** Moves the dragged note into the slot of the note its centre is hovering over. */
+  fun moveIfHovering(noteId: Long) {
+    val boxes = allBoxes()
+    val own = boxes.firstOrNull { noteIdFromKey(it.key) == noteId } ?: return
+
+    // We just reordered and the lazy layout has not caught up yet: its positions are stale.
+    if (swapGuard.isWaiting(own.index)) return
+
+    val center = dragBase + Offset(own.size.width / 2f, own.size.height / 2f)
+    // Still above its own slot, nothing to do (prevents ping-pong in staggered layouts).
+    if (own.contains(center)) return
+
+    val fromNote = localNotes.firstOrNull { it.id == noteId } ?: return
+    val target = boxes.firstOrNull { box ->
+      val id = noteIdFromKey(box.key)
+      id != null && id != noteId && box.contains(center) &&
+        localNotes.firstOrNull { it.id == id }?.isPinned == fromNote.isPinned
+    } ?: return
+    val targetId = noteIdFromKey(target.key) ?: return
+
+    val fullList = localNotes.toMutableList()
+    val fromIdx = fullList.indexOfFirst { it.id == noteId }
+    val toIdx = fullList.indexOfFirst { it.id == targetId }
+    if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
+      fullList.add(toIdx, fullList.removeAt(fromIdx))
+      localNotes = fullList
+      swapGuard.arm(target.index)
+      haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
   }
 
   val onDragStart: (Long) -> Unit = { noteId ->
     settleJob?.cancel()
+    swapGuard.reset()
+    dragBase = findBox(noteId)?.topLeft ?: Offset.Zero
+    settleFraction = 1f
     draggingNoteId = noteId
     isDragReleased = false
-    dragOffsetX = 0f
-    dragOffsetY = 0f
     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
   }
 
   val onDragFinished: () -> Unit = finish@{
     if (draggingNoteId == null || isDragReleased) return@finish
 
-    if (localNotes != uiState.activeNotes) {
+    if (localNotes != latestUiState.activeNotes) {
       onReorderNotes(localNotes)
     }
 
     // Glide the card into its new slot instead of snapping it there.
     isDragReleased = true
-    val startX = dragOffsetX
-    val startY = dragOffsetY
     settleJob?.cancel()
     settleJob = coroutineScope.launch {
       animate(
@@ -167,135 +284,83 @@ fun HomeScreen(
           dampingRatio = Spring.DampingRatioNoBouncy,
           stiffness = Spring.StiffnessMedium
         )
-      ) { progress, _ ->
-        dragOffsetX = startX * progress
-        dragOffsetY = startY * progress
-      }
-      dragOffsetX = 0f
-      dragOffsetY = 0f
+      ) { progress, _ -> settleFraction = progress }
+      settleFraction = 1f
       draggingNoteId = null
       isDragReleased = false
-    }
-  }
-
-  /** Swaps the dragged note with the one it is hovering over (grid mode). */
-  val swapInGrid: (Long) -> Unit = swap@{ noteId ->
-    val visibleItems = gridState.layoutInfo.visibleItemsInfo
-    val fromItemInfo = visibleItems.firstOrNull {
-      it.key == "pinned_$noteId" || it.key == "note_$noteId"
-    } ?: return@swap
-
-    val centerX = fromItemInfo.offset.x + fromItemInfo.size.width / 2f + dragOffsetX
-    val centerY = fromItemInfo.offset.y + fromItemInfo.size.height / 2f + dragOffsetY
-    val fromNote = localNotes.firstOrNull { it.id == noteId } ?: return@swap
-
-    val pad = 16f
-    val targetItemInfo = visibleItems.firstOrNull { itemInfo ->
-      val candidateId = itemInfo.key.toString()
-        .removePrefix("pinned_").removePrefix("note_").toLongOrNull()
-      if (candidateId != null && candidateId != noteId) {
-        val candidateNote = localNotes.firstOrNull { it.id == candidateId }
-        if (candidateNote != null && candidateNote.isPinned == fromNote.isPinned) {
-          centerX in (itemInfo.offset.x - pad)..(itemInfo.offset.x + itemInfo.size.width + pad) &&
-            centerY in (itemInfo.offset.y - pad)..(itemInfo.offset.y + itemInfo.size.height + pad)
-        } else false
-      } else false
-    } ?: return@swap
-
-    val targetId = targetItemInfo.key.toString()
-      .removePrefix("pinned_").removePrefix("note_").toLongOrNull() ?: return@swap
-    val fullList = localNotes.toMutableList()
-    val fromIdx = fullList.indexOfFirst { it.id == noteId }
-    val toIdx = fullList.indexOfFirst { it.id == targetId }
-    if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
-      fullList.add(toIdx, fullList.removeAt(fromIdx))
-      localNotes = fullList
-
-      // Keep the card under the finger while the slots change.
-      dragOffsetX -= targetItemInfo.offset.x - fromItemInfo.offset.x
-      dragOffsetY -= targetItemInfo.offset.y - fromItemInfo.offset.y
-      haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-    }
-  }
-
-  /** Swaps the dragged note with the one it is hovering over (list mode). */
-  val swapInList: (Long) -> Unit = swap@{ noteId ->
-    val visibleItems = listState.layoutInfo.visibleItemsInfo
-    val fromItemInfo = visibleItems.firstOrNull { it.key == "list_$noteId" } ?: return@swap
-
-    val centerY = fromItemInfo.offset + fromItemInfo.size / 2f + dragOffsetY
-    val fromNote = localNotes.firstOrNull { it.id == noteId } ?: return@swap
-
-    val pad = 16
-    val targetItemInfo = visibleItems.firstOrNull { itemInfo ->
-      val candidateId = itemInfo.key.toString().removePrefix("list_").toLongOrNull()
-      if (candidateId != null && candidateId != noteId) {
-        val candidateNote = localNotes.firstOrNull { it.id == candidateId }
-        if (candidateNote != null && candidateNote.isPinned == fromNote.isPinned) {
-          centerY >= itemInfo.offset - pad && centerY <= itemInfo.offset + itemInfo.size + pad
-        } else false
-      } else false
-    } ?: return@swap
-
-    val targetId = targetItemInfo.key.toString().removePrefix("list_").toLongOrNull() ?: return@swap
-    val fullList = localNotes.toMutableList()
-    val fromIdx = fullList.indexOfFirst { it.id == noteId }
-    val toIdx = fullList.indexOfFirst { it.id == targetId }
-    if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
-      fullList.add(toIdx, fullList.removeAt(fromIdx))
-      localNotes = fullList
-
-      dragOffsetY -= targetItemInfo.offset - fromItemInfo.offset
-      haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+      if (externalChangeWhileDragging) {
+        externalChangeWhileDragging = false
+        localNotes = latestUiState.activeNotes
+      }
     }
   }
 
   val onDragGrid: (Long, Offset) -> Unit = { noteId, dragAmount ->
-    dragOffsetX += dragAmount.x
-    dragOffsetY += dragAmount.y
-    swapInGrid(noteId)
+    dragBase += dragAmount
+    moveIfHovering(noteId)
   }
 
   val onDragList: (Long, Offset) -> Unit = { noteId, dragAmount ->
-    dragOffsetX += dragAmount.x
-    dragOffsetY += dragAmount.y
-    swapInList(noteId)
+    // List mode only moves vertically.
+    dragBase += Offset(0f, dragAmount.y)
+    moveIfHovering(noteId)
   }
 
   // Smooth auto-scroll: runs every frame while a card is held near the top or bottom edge,
-  // even when the finger is not moving. Speed grows the closer the card gets to the edge.
+  // even when the finger is not moving. The edges are the real content edges
+  // (viewportStart/EndOffset), so the bottom padding reserved for the floating menu bar counts as
+  // "past the edge" and the list keeps scrolling until the last note is reachable.
   LaunchedEffect(draggingNoteId, isDragReleased, isGridMode) {
     val noteId = draggingNoteId ?: return@LaunchedEffect
     if (isDragReleased) return@LaunchedEffect
 
     while (isActive) {
-      val viewport = (
-        if (isGridMode) gridState.layoutInfo.viewportSize.height
-        else listState.layoutInfo.viewportSize.height
-        ).toFloat()
-
-      val centerY: Float? = if (isGridMode) {
-        gridState.layoutInfo.visibleItemsInfo
-          .firstOrNull { it.key == "pinned_$noteId" || it.key == "note_$noteId" }
-          ?.let { it.offset.y + it.size.height / 2f + dragOffsetY }
-      } else {
-        listState.layoutInfo.visibleItemsInfo
-          .firstOrNull { it.key == "list_$noteId" }
-          ?.let { it.offset + it.size / 2f + dragOffsetY }
-      }
-
-      if (centerY != null && viewport > 0f) {
-        val delta = autoScrollSpeed(centerY, viewport)
+      val own = findBox(noteId)
+      if (own != null) {
+        val (top, bottom) = viewportStartEnd()
+        val centerY = dragBase.y + own.size.height / 2f
+        val delta = autoScrollSpeed(centerY, top, bottom, edgeZonePx, maxScrollPerFramePx)
         if (delta != 0f) {
-          val consumed = if (isGridMode) gridState.scrollBy(delta) else listState.scrollBy(delta)
-          // Content moved under the card, so move the card with it to stay under the finger.
-          dragOffsetY += consumed
-          if (isGridMode) swapInGrid(noteId) else swapInList(noteId)
+          if (isGridMode) gridState.scrollBy(delta) else listState.scrollBy(delta)
         }
+        // Content may have moved under a stationary finger, so re-check what we hover.
+        moveIfHovering(noteId)
       }
       withFrameNanos { }
     }
   }
+
+  val placementFor: (Long) -> FiniteAnimationSpec<IntOffset>? = { id ->
+    // The dragged card is positioned by the finger, it must not animate its own placement.
+    if (id == draggingNoteId) null else ReorderPlacementSpec
+  }
+
+  val renderNote: @Composable (Note, Modifier, (Long, Offset) -> Unit) -> Unit =
+    { note, placement, onDrag ->
+      val isDragging = note.id == draggingNoteId
+      val itemModifier = rememberReorderModifier(
+        noteId = note.id,
+        draggingNoteId = draggingNoteId,
+        isReleased = isDragReleased,
+        translation = dragTranslation,
+        placement = placement,
+        onDragStart = onDragStart,
+        onDrag = onDrag,
+        onDragEnd = onDragFinished
+      )
+
+      NoteCard(
+        note = note,
+        onClick = { onNoteClick(note) },
+        onTogglePin = { onTogglePin(note) },
+        onRemove = { onRemove(note) },
+        onRestore = { onRestore(note) },
+        onDeletePermanently = { onDeletePermanently(note) },
+        onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
+        isDragging = isDragging && !isDragReleased,
+        modifier = itemModifier
+      )
+    }
 
   val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
@@ -558,7 +623,7 @@ fun HomeScreen(
           val unpinnedNotes = remember(localNotes) { localNotes.filter { !it.isPinned } }
 
           // Grid or List View
-          if (uiState.viewMode == ViewMode.GRID) {
+          if (isGridMode) {
             LazyVerticalStaggeredGrid(
               columns = StaggeredGridCells.Fixed(2),
               state = gridState,
@@ -571,7 +636,7 @@ fun HomeScreen(
             ) {
               // Pinned Notes Section Header
               if (pinnedNotes.isNotEmpty()) {
-                item(span = StaggeredGridItemSpan.FullLine) {
+                item(key = "header_pinned", span = StaggeredGridItemSpan.FullLine) {
                   Text(
                     text = stringResource(R.string.pinned_section),
                     style = MaterialTheme.typography.labelSmall.copy(
@@ -584,34 +649,15 @@ fun HomeScreen(
                 }
 
                 items(pinnedNotes, key = { "pinned_${it.id}" }) { note ->
-                  val isDragging = note.id == draggingNoteId
-                  val itemModifier = rememberReorderModifier(
-                    noteId = note.id,
-                    draggingNoteId = draggingNoteId,
-                    isReleased = isDragReleased,
-                    offsetX = { dragOffsetX },
-                    offsetY = { dragOffsetY },
-                    placement = Modifier.animateItem(placementSpec = ReorderPlacementSpec),
-                    onDragStart = onDragStart,
-                    onDrag = onDragGrid,
-                    onDragEnd = onDragFinished
-                  )
-
-                  NoteCard(
-                    note = note,
-                    onClick = { onNoteClick(note) },
-                    onTogglePin = { onTogglePin(note) },
-                    onRemove = { onRemove(note) },
-                    onRestore = { onRestore(note) },
-                    onDeletePermanently = { onDeletePermanently(note) },
-                    onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
-                    isDragging = isDragging && !isDragReleased,
-                    modifier = itemModifier
+                  renderNote(
+                    note,
+                    Modifier.animateItem(placementSpec = placementFor(note.id)),
+                    onDragGrid
                   )
                 }
 
                 if (unpinnedNotes.isNotEmpty()) {
-                  item(span = StaggeredGridItemSpan.FullLine) {
+                  item(key = "header_unpinned", span = StaggeredGridItemSpan.FullLine) {
                     Text(
                       text = stringResource(R.string.others_section),
                       style = MaterialTheme.typography.labelSmall.copy(
@@ -628,29 +674,10 @@ fun HomeScreen(
               val listToRender = if (pinnedNotes.isNotEmpty()) unpinnedNotes else currentNotes
 
               items(listToRender, key = { "note_${it.id}" }) { note ->
-                val isDragging = note.id == draggingNoteId
-                val itemModifier = rememberReorderModifier(
-                  noteId = note.id,
-                  draggingNoteId = draggingNoteId,
-                  isReleased = isDragReleased,
-                  offsetX = { dragOffsetX },
-                  offsetY = { dragOffsetY },
-                  placement = Modifier.animateItem(placementSpec = ReorderPlacementSpec),
-                  onDragStart = onDragStart,
-                  onDrag = onDragGrid,
-                  onDragEnd = onDragFinished
-                )
-
-                NoteCard(
-                  note = note,
-                  onClick = { onNoteClick(note) },
-                  onTogglePin = { onTogglePin(note) },
-                  onRemove = { onRemove(note) },
-                  onRestore = { onRestore(note) },
-                  onDeletePermanently = { onDeletePermanently(note) },
-                  onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
-                  isDragging = isDragging && !isDragReleased,
-                  modifier = itemModifier
+                renderNote(
+                  note,
+                  Modifier.animateItem(placementSpec = placementFor(note.id)),
+                  onDragGrid
                 )
               }
             }
@@ -678,29 +705,10 @@ fun HomeScreen(
                 }
 
                 items(pinnedNotes, key = { "list_${it.id}" }) { note ->
-                  val isDragging = note.id == draggingNoteId
-                  val itemModifier = rememberReorderModifier(
-                    noteId = note.id,
-                    draggingNoteId = draggingNoteId,
-                    isReleased = isDragReleased,
-                    offsetX = { dragOffsetX },
-                    offsetY = { dragOffsetY },
-                    placement = Modifier.animateItem(placementSpec = ReorderPlacementSpec),
-                    onDragStart = onDragStart,
-                    onDrag = onDragList,
-                    onDragEnd = onDragFinished
-                  )
-
-                  NoteCard(
-                    note = note,
-                    onClick = { onNoteClick(note) },
-                    onTogglePin = { onTogglePin(note) },
-                    onRemove = { onRemove(note) },
-                    onRestore = { onRestore(note) },
-                    onDeletePermanently = { onDeletePermanently(note) },
-                    onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
-                    isDragging = isDragging && !isDragReleased,
-                    modifier = itemModifier
+                  renderNote(
+                    note,
+                    Modifier.animateItem(placementSpec = placementFor(note.id)),
+                    onDragList
                   )
                 }
 
@@ -722,29 +730,10 @@ fun HomeScreen(
               val listToRender = if (pinnedNotes.isNotEmpty()) unpinnedNotes else currentNotes
 
               items(listToRender, key = { "list_${it.id}" }) { note ->
-                val isDragging = note.id == draggingNoteId
-                val itemModifier = rememberReorderModifier(
-                  noteId = note.id,
-                  draggingNoteId = draggingNoteId,
-                  isReleased = isDragReleased,
-                  offsetX = { dragOffsetX },
-                  offsetY = { dragOffsetY },
-                  placement = Modifier.animateItem(placementSpec = ReorderPlacementSpec),
-                  onDragStart = onDragStart,
-                  onDrag = onDragList,
-                  onDragEnd = onDragFinished
-                )
-
-                NoteCard(
-                  note = note,
-                  onClick = { onNoteClick(note) },
-                  onTogglePin = { onTogglePin(note) },
-                  onRemove = { onRemove(note) },
-                  onRestore = { onRestore(note) },
-                  onDeletePermanently = { onDeletePermanently(note) },
-                  onToggleChecklistItem = { idx -> onToggleChecklistItem(note, idx) },
-                  isDragging = isDragging && !isDragReleased,
-                  modifier = itemModifier
+                renderNote(
+                  note,
+                  Modifier.animateItem(placementSpec = placementFor(note.id)),
+                  onDragList
                 )
               }
             }
@@ -773,24 +762,80 @@ private val ReorderPlacementSpec: FiniteAnimationSpec<IntOffset> = spring(
 
 private const val LIFTED_SCALE = 1.04f
 
+/** A visible lazy item, normalised so grid and list share the same drag logic. */
+private data class ItemBox(
+  val key: Any,
+  val index: Int,
+  val topLeft: Offset,
+  val size: Size
+) {
+  fun contains(p: Offset): Boolean =
+    p.x >= topLeft.x && p.x <= topLeft.x + size.width &&
+      p.y >= topLeft.y && p.y <= topLeft.y + size.height
+}
+
+/**
+ * After a reorder the lazy layout needs a frame to catch up. Until the dragged item reports its
+ * new index, the layout positions are stale and must not be used for another reorder.
+ */
+private class SwapGuard {
+  private var expectedIndex: Int? = null
+  private var armedAtNanos = 0L
+
+  fun arm(index: Int) {
+    expectedIndex = index
+    armedAtNanos = System.nanoTime()
+  }
+
+  fun reset() {
+    expectedIndex = null
+  }
+
+  fun isWaiting(currentIndex: Int): Boolean {
+    val expected = expectedIndex ?: return false
+    val timedOut = System.nanoTime() - armedAtNanos > 300_000_000L
+    if (currentIndex == expected || timedOut) {
+      expectedIndex = null
+      return false
+    }
+    return true
+  }
+}
+
+/** Only keys that really belong to a note card map to an id (headers and others return null). */
+private fun noteIdFromKey(key: Any?): Long? {
+  val s = key as? String ?: return null
+  val raw = when {
+    s.startsWith("pinned_") -> s.removePrefix("pinned_")
+    s.startsWith("note_") -> s.removePrefix("note_")
+    s.startsWith("list_") -> s.removePrefix("list_")
+    else -> return null
+  }
+  return raw.toLongOrNull()
+}
+
 /** Scroll speed (px per frame) for a card held near an edge. Faster closer to the edge. */
 private fun autoScrollSpeed(
   centerY: Float,
-  viewportHeight: Float,
-  edgeZone: Float = 140f,
-  maxSpeed: Float = 26f
+  viewportTop: Float,
+  viewportBottom: Float,
+  edgeZone: Float,
+  maxSpeed: Float
 ): Float = when {
-  centerY < edgeZone -> -((edgeZone - centerY) / edgeZone).coerceIn(0f, 1f) * maxSpeed
-  centerY > viewportHeight - edgeZone ->
-    ((centerY - (viewportHeight - edgeZone)) / edgeZone).coerceIn(0f, 1f) * maxSpeed
+  centerY < viewportTop + edgeZone ->
+    -((viewportTop + edgeZone - centerY) / edgeZone).coerceIn(0f, 1f) * maxSpeed
+  centerY > viewportBottom - edgeZone ->
+    ((centerY - (viewportBottom - edgeZone)) / edgeZone).coerceIn(0f, 1f) * maxSpeed
   else -> 0f
 }
 
 /**
  * Shared look and gesture for a reorderable note card (grid and list).
  *
- * - The card lifts with a soft spring when picked up and settles back when dropped.
- * - Other cards glide to their new place using [placement].
+ * - The modifier chain has the same shape whether or not the card is dragged, so the pointer
+ *   gesture is never torn down in the middle of a drag.
+ * - The dragged card is placed by [translation] (absolute, finger driven); other cards glide
+ *   using [placement].
  * - Long press then drag starts the move.
  */
 @Composable
@@ -798,8 +843,7 @@ private fun rememberReorderModifier(
   noteId: Long,
   draggingNoteId: Long?,
   isReleased: Boolean,
-  offsetX: () -> Float,
-  offsetY: () -> Float,
+  translation: (Long) -> Offset,
   placement: Modifier,
   onDragStart: (Long) -> Unit,
   onDrag: (Long, Offset) -> Unit,
@@ -820,31 +864,29 @@ private fun rememberReorderModifier(
   val currentOnDragStart by rememberUpdatedState(onDragStart)
   val currentOnDrag by rememberUpdatedState(onDrag)
   val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+  val currentTranslation by rememberUpdatedState(translation)
 
-  val look = if (isDragging) {
-    Modifier
-      .zIndex(10f)
-      .graphicsLayer {
-        translationX = offsetX()
-        translationY = offsetY()
+  return Modifier
+    .then(placement)
+    .zIndex(if (isDragging) 10f else 0f)
+    .graphicsLayer {
+      if (isDragging) {
+        val t = currentTranslation(noteId)
+        translationX = t.x
+        translationY = t.y
         scaleX = scale
         scaleY = scale
       }
-  } else {
-    Modifier
-      .zIndex(0f)
-      .then(placement)
-  }
-
-  return look.pointerInput(noteId) {
-    detectDragGesturesAfterLongPress(
-      onDragStart = { currentOnDragStart(noteId) },
-      onDrag = { change, dragAmount ->
-        change.consume()
-        currentOnDrag(noteId, dragAmount)
-      },
-      onDragEnd = { currentOnDragEnd() },
-      onDragCancel = { currentOnDragEnd() }
-    )
-  }
+    }
+    .pointerInput(noteId) {
+      detectDragGesturesAfterLongPress(
+        onDragStart = { currentOnDragStart(noteId) },
+        onDrag = { change, dragAmount ->
+          change.consume()
+          currentOnDrag(noteId, dragAmount)
+        },
+        onDragEnd = { currentOnDragEnd() },
+        onDragCancel = { currentOnDragEnd() }
+      )
+    }
 }
