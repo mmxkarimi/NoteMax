@@ -65,9 +65,5 @@
     <string name="action_options">گزینه‌ها</string>
     <string name="copy_code">کپی کد</string>
     <string name="copied_to_clipboard">در حافظه کپی شد</string>
-    <string name="badge_encrypted">رمزنگاری‌شده</string>
-    <string name="badge_aes_256">AES-256</string>
     <string name="untitled_note">یادداشت بدون عنوان</string>
-    <string name="encrypted_vault_note">یادداشت رمزنگاری‌شده</string>
-    <string name="encrypted_note_preview">🔒 محافظت‌شده با رمزنگاری ۲۵۶ بیتی AES-GCM.</string>
 </resources>

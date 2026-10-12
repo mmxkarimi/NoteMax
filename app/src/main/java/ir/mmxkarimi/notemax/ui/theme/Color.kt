@@ -88,17 +88,3 @@ val NoteColorAmber = 0xFF5C3D11
 val NoteColorEmerald = 0xFF14532D
 val NoteColorRose = 0xFF4C1D2A
 val NoteColorLime = 0xFF36480B
-
-// Status Colors & Encryption Badges
-// Darker in light mode to guarantee high contrast (>7:1) and crisp readability
-val VaultEncryptedColorLight = Color(0xFF233800)          // Very dark olive-forest green for text/icons in light mode
-val VaultEncryptedContainerLight = Color(0xFFD4EA92)      // Solid, legible tinted container in light mode
-val VaultEncryptedBorderLight = Color(0xFF3F5D00)         // Dark crisp border in light mode
-
-val VaultEncryptedColorDark = Color(0xFFC6F135)           // Vibrant lime for dark mode
-val VaultEncryptedContainerDark = Color(0xFF222D00)       // Deep olive container for dark mode
-val VaultEncryptedBorderDark = Color(0xFF5D7B00)          // Subtle lime border for dark mode
-
-val VaultLockedColor = Color(0xFFB45309)                  // Dark amber (high contrast over bright yellow)
-val VaultEncryptedColor = Color(0xFF233800)               // Darker base tone for high readability
-val VaultCriticalColor = Color(0xFFB91C1C)                // Deep red for readability

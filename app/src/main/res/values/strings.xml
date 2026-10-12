@@ -65,9 +65,5 @@
     <string name="action_options">Options</string>
     <string name="copy_code">Copy code</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
-    <string name="badge_encrypted">Encrypted</string>
-    <string name="badge_aes_256">AES-256</string>
     <string name="untitled_note">Untitled Note</string>
-    <string name="encrypted_vault_note">Encrypted Note</string>
-    <string name="encrypted_note_preview">🔒 Protected with 256-bit AES-GCM encryption.</string>
 </resources>

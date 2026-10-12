@@ -45,17 +45,17 @@
         android:strokeLineCap="round"
         android:pathData="M50,58 L65,58" />
 
-    <!-- Item 3: Security lock badge at bottom corner -->
-    <path
-        android:fillColor="#C6F135"
-        android:pathData="M68,64 L80,64 C82,64 83,65 83,67 L83,77 C83,79 82,80 80,80 L68,80 C66,80 65,79 65,77 L65,67 C65,65 66,64 68,64 Z" />
+    <!-- Item 3: Unchecked checkbox -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#C6F135"
-        android:strokeWidth="1.5"
-        android:pathData="M69,64 L69,61 C69,58 79,58 79,61 L79,64" />
-    <!-- Keyhole inside lock badge -->
+        android:strokeWidth="1.6"
+        android:pathData="M33,68 L43,68 C44,68 45,69 45,70 L45,78 C45,79 44,80 43,80 L33,80 C32,80 31,79 31,78 L31,70 C31,69 32,68 33,68 Z" />
+    <!-- Item 3 line -->
     <path
-        android:fillColor="#1A2402"
-        android:pathData="M74,69 A1.5,1.5 0 1,0 74,72 L74.5,75 L73.5,75 Z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#E2F97D"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M50,74 L62,74" />
 </vector>

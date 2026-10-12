@@ -66,7 +66,6 @@ fun NoteCard(
   onRestore: () -> Unit,
   onDeletePermanently: () -> Unit,
   onToggleChecklistItem: ((Int) -> Unit)? = null,
-  onUnlockRequest: () -> Unit = {},
   isDragging: Boolean = false,
   modifier: Modifier = Modifier
 ) {

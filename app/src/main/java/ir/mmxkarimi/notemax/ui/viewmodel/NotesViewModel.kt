@@ -7,6 +7,7 @@ import ir.mmxkarimi.notemax.data.model.ChecklistItem
 import ir.mmxkarimi.notemax.data.model.Note
 import ir.mmxkarimi.notemax.data.prefs.ViewModePrefs
 import ir.mmxkarimi.notemax.data.repository.NoteRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 enum class ViewMode {
   GRID,
@@ -117,6 +119,12 @@ class NotesViewModel(
 
   fun saveNote(note: Note) {
     viewModelScope.launch {
+      repository.saveNote(note)
+    }
+  }
+
+  fun saveNoteSync(note: Note): Long {
+    return runBlocking(Dispatchers.IO) {
       repository.saveNote(note)
     }
   }

@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
     NotesViewModelFactory(repository, viewModePrefs)
   }
 
+  var onSaveCurrentDraft: (() -> Unit)? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge(
@@ -64,6 +66,16 @@ class MainActivity : ComponentActivity() {
         MainAppContent()
       }
     }
+  }
+
+  override fun onPause() {
+    super.onPause()
+    onSaveCurrentDraft?.invoke()
+  }
+
+  override fun onStop() {
+    super.onStop()
+    onSaveCurrentDraft?.invoke()
   }
 
   @Composable
@@ -94,9 +106,7 @@ class MainActivity : ComponentActivity() {
             },
             onNewNote = {
               val newNote = Note(
-                isChecklist = false,
-                isEncrypted = false,
-                isUnlocked = true
+                isChecklist = false
               )
               currentScreen = Screen.Editor(newNote)
             },
@@ -126,6 +136,9 @@ class MainActivity : ComponentActivity() {
             },
             onNavigateBack = {
               currentScreen = Screen.Home
+            },
+            onSaveDraft = { draftNote ->
+              viewModel.saveNoteSync(draftNote)
             }
           )
         }

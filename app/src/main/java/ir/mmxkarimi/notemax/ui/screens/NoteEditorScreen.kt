@@ -41,11 +41,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import ir.mmxkarimi.notemax.MainActivity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -81,6 +86,7 @@ fun NoteEditorScreen(
   onSaveAndClose: (Note) -> Unit,
   onDeleteNote: (Note) -> Unit,
   onNavigateBack: () -> Unit,
+  onSaveDraft: (Note) -> Long = { 0L },
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -90,6 +96,12 @@ fun NoteEditorScreen(
   val bringIntoViewRequester = remember { BringIntoViewRequester() }
   var contentLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
   val density = LocalDensity.current
+
+  var currentNoteId by remember(initialNote?.id) { mutableStateOf(initialNote?.id ?: 0L) }
+  var currentCreatedAt by remember(initialNote?.createdAt) {
+    mutableStateOf(if (initialNote != null && initialNote.id != 0L) initialNote.createdAt else System.currentTimeMillis())
+  }
+  var currentOrderIndex by remember(initialNote?.orderIndex) { mutableStateOf(initialNote?.orderIndex ?: 0) }
 
   var title by remember { mutableStateOf(initialNote?.title ?: "") }
   var contentTextFieldValue by remember {
@@ -101,17 +113,21 @@ fun NoteEditorScreen(
   }
   var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
-  fun saveCurrentNote() {
+  var lastSavedTitle by remember { mutableStateOf(initialNote?.title ?: "") }
+  var lastSavedContent by remember { mutableStateOf(initialNote?.content ?: "") }
+  var lastSavedPinned by remember { mutableStateOf(initialNote?.isPinned ?: false) }
+
+  fun saveCurrentNote(shouldClose: Boolean = true) {
     val trimmedTitle = title.trim()
     val trimmedContent = contentTextFieldValue.text.trim()
-    val isNewNote = initialNote == null || initialNote.id == 0L
+    val isNewNote = currentNoteId == 0L
 
     // If both title and content are blank:
     if (trimmedTitle.isBlank() && trimmedContent.isBlank()) {
       if (!isNewNote) {
         // If an existing note was edited to be completely empty, delete/trash it
-        onDeleteNote(initialNote!!)
-      } else {
+        onDeleteNote(Note(id = currentNoteId))
+      } else if (shouldClose) {
         // For a new note with no content, simply discard and navigate back without saving
         onNavigateBack()
       }
@@ -119,28 +135,65 @@ fun NoteEditorScreen(
     }
 
     // If an existing note was opened and left without any changes:
-    if (!isNewNote) {
-      val hasChanged = trimmedTitle != initialNote!!.title.trim() ||
-        trimmedContent != initialNote.content.trim() ||
-        isPinned != initialNote.isPinned
+    val hasChanged = trimmedTitle != lastSavedTitle.trim() ||
+      trimmedContent != lastSavedContent.trim() ||
+      isPinned != lastSavedPinned
 
-      if (!hasChanged) {
-        // No changes made: do not change date or save
+    if (!hasChanged) {
+      if (shouldClose) {
         onNavigateBack()
-        return
       }
+      return
     }
 
-    val noteToSave = (initialNote ?: Note()).copy(
+    val noteToSave = Note(
+      id = currentNoteId,
       title = trimmedTitle,
       content = trimmedContent,
       isChecklist = false,
       colorHex = 0L,
-      isEncrypted = false,
       isPinned = isPinned,
-      updatedAt = System.currentTimeMillis()
+      createdAt = currentCreatedAt,
+      updatedAt = System.currentTimeMillis(),
+      orderIndex = currentOrderIndex
     )
-    onSaveAndClose(noteToSave)
+
+    if (shouldClose) {
+      onSaveAndClose(noteToSave)
+    } else {
+      val savedId = onSaveDraft(noteToSave)
+      if (savedId > 0L) {
+        currentNoteId = savedId
+      }
+      lastSavedTitle = trimmedTitle
+      lastSavedContent = trimmedContent
+      lastSavedPinned = isPinned
+    }
+  }
+
+  // Save note automatically when app is backgrounded, paused, or stopped (e.g. closing whole app)
+  val lifecycleOwner = LocalLifecycleOwner.current
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+        saveCurrentNote(shouldClose = false)
+      }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose {
+      lifecycleOwner.lifecycle.removeObserver(observer)
+    }
+  }
+
+  // Register with MainActivity to ensure save runs synchronously in onPause/onStop before process death
+  val activity = context as? MainActivity
+  DisposableEffect(activity) {
+    activity?.onSaveCurrentDraft = {
+      saveCurrentNote(shouldClose = false)
+    }
+    onDispose {
+      activity?.onSaveCurrentDraft = null
+    }
   }
 
   // Keep the cursor visible while typing or adding a new line
@@ -158,7 +211,7 @@ fun NoteEditorScreen(
 
   // Handle system back navigation
   BackHandler {
-    saveCurrentNote()
+    saveCurrentNote(shouldClose = true)
   }
 
   // Delete Confirmation Dialog
@@ -166,8 +219,8 @@ fun NoteEditorScreen(
     CenteredDeleteConfirmDialog(
       onConfirm = {
         showDeleteConfirmDialog = false
-        if (initialNote != null) {
-          onDeleteNote(initialNote)
+        if (currentNoteId != 0L) {
+          onDeleteNote(Note(id = currentNoteId))
         } else {
           onNavigateBack()
         }
@@ -433,7 +486,7 @@ fun NoteEditorScreen(
           }
 
           // Delete Button (shows confirm dialog)
-          if (initialNote != null && initialNote.id != 0L) {
+          if (currentNoteId != 0L) {
             IconButton(
               onClick = { showDeleteConfirmDialog = true },
               modifier = Modifier.testTag("editor_delete_button")

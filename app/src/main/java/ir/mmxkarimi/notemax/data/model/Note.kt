@@ -17,13 +17,11 @@ data class Note(
   val isChecklist: Boolean = false,
   val checklistItems: List<ChecklistItem> = emptyList(),
   val colorHex: Long = 0L,
-  val isEncrypted: Boolean = false,
   val isPinned: Boolean = false,
   val isArchived: Boolean = false,
   val isTrashed: Boolean = false,
   val createdAt: Long = System.currentTimeMillis(),
   val updatedAt: Long = System.currentTimeMillis(),
-  val isUnlocked: Boolean = true, // transient in-memory lock state
   val orderIndex: Int = 0
 ) {
   val displayTitle: String
@@ -33,7 +31,7 @@ data class Note(
     get() = content
 
   val wordCount: Int
-    get() = if (content.isBlank() || (isEncrypted && !isUnlocked)) 0
+    get() = if (content.isBlank()) 0
     else content.trim().split("\\s+".toRegex()).size
 
   val formattedDate: String
@@ -50,7 +48,6 @@ data class Note(
 
   val checklistProgress: Pair<Int, Int>?
     get() {
-      if (isEncrypted && !isUnlocked) return null
       if (isChecklist && checklistItems.isNotEmpty()) {
         val total = checklistItems.size
         val completed = checklistItems.count { it.isChecked }

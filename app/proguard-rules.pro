@@ -1,8 +1,7 @@
 # ProGuard / R8 optimization rules for NoteMax
 
-# Keep app data models, database, DAO, crypto, and ViewModels
+# Keep app data models, database, DAO, and ViewModels
 -keep class com.example.data.** { *; }
--keep class com.example.crypto.** { *; }
 -keep class com.example.ui.viewmodel.** { *; }
 
 # Preserve Room Database and DAOs

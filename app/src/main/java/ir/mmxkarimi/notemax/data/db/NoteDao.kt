@@ -48,7 +48,4 @@ interface NoteDao {
 
   @Query("SELECT COUNT(*) FROM notes WHERE isTrashed = 0 AND isArchived = 0")
   fun getActiveNotesCount(): Flow<Int>
-
-  @Query("SELECT COUNT(*) FROM notes WHERE isEncrypted = 1 AND isTrashed = 0")
-  fun getEncryptedNotesCount(): Flow<Int>
 }

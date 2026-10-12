@@ -7,11 +7,10 @@ import androidx.room.PrimaryKey
 data class NoteEntity(
   @PrimaryKey(autoGenerate = true)
   val id: Long = 0L,
-  val titleEncrypted: String,
-  val contentEncrypted: String,
+  val title: String,
+  val content: String,
   val isChecklist: Boolean = false,
   val colorHex: Long = 0L,
-  val isEncrypted: Boolean = false,
   val isPinned: Boolean = false,
   val isArchived: Boolean = false,
   val isTrashed: Boolean = false,
