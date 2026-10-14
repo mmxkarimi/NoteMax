@@ -83,9 +83,9 @@ class NoteWidgetProvider : AppWidgetProvider() {
       // Set PendingIntent template on ListView (clicking any item opens MainActivity)
       val openNoteIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_VIEW
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
       }
-      val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
       } else {
         PendingIntent.FLAG_UPDATE_CURRENT
@@ -94,14 +94,14 @@ class NoteWidgetProvider : AppWidgetProvider() {
         context,
         appWidgetId,
         openNoteIntent,
-        flags
+        pendingIntentFlags
       )
       views.setPendingIntentTemplate(R.id.widget_list_view, openPendingIntent)
 
       // Header click directly opens this specific note
       val headerIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_VIEW
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         putExtra(MainActivity.EXTRA_NOTE_ID, note.id)
       }
       val headerPendingIntent = PendingIntent.getActivity(
@@ -116,7 +116,7 @@ class NoteWidgetProvider : AppWidgetProvider() {
       // Click on switch button reopens NoteWidgetConfigureActivity
       val switchIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
         putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
       }
       val switchPendingIntent = PendingIntent.getActivity(
         context,
@@ -142,7 +142,7 @@ class NoteWidgetProvider : AppWidgetProvider() {
 
     val configureIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
       putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-      flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
     val configurePendingIntent = PendingIntent.getActivity(
       context,
