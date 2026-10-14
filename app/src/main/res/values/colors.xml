@@ -9,4 +9,9 @@
     <color name="white">#FFFFFFFF</color>
     <color name="background_light">#FFFAFBF1</color>
     <color name="background_dark">#FF12140E</color>
+    <color name="widget_surface">#FF1E211A</color>
+    <color name="widget_surface_stroke">#FF45483C</color>
+    <color name="widget_text_primary">#FFE3E3DC</color>
+    <color name="widget_text_secondary">#FF909282</color>
+    <color name="widget_primary">#FFC6F135</color>
 </resources>

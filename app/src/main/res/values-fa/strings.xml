@@ -33,9 +33,12 @@
     <string name="dialog_delete_title">حذف یادداشت</string>
     <string name="dialog_delete_message">آیا از حذف دائمی این یادداشت اطمینان دارید؟</string>
 
-    <!-- View Modes -->
-    <string name="view_mode_grid">نمای شبکه‌ای</string>
-    <string name="view_mode_list">نمای لیستی</string>
+    <!-- Widget -->
+    <string name="widget_name">نمای یادداشت</string>
+    <string name="widget_description">مشاهده یادداشت با رندر کامل مارک‌داون و اسکرول در صفحه اصلی</string>
+    <string name="widget_select_note">برای انتخاب یادداشت ضربه بزنید</string>
+    <string name="widget_configure_title">انتخاب یادداشت برای ویجت</string>
+    <string name="widget_empty_content">محتوایی در این یادداشت وجود ندارد</string>
 
     <!-- Editor -->
     <string name="note_title_placeholder">عنوان</string>

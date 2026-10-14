@@ -23,14 +23,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
-import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
-import androidx.compose.foundation.lazy.staggeredgrid.items
-import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -87,9 +84,9 @@ import ir.mmxkarimi.notemax.R
 import ir.mmxkarimi.notemax.data.model.Note
 import ir.mmxkarimi.notemax.ui.components.MarkdownPreview
 import ir.mmxkarimi.notemax.ui.components.NoteCard
+import ir.mmxkarimi.notemax.ui.components.NoteSkeletonLoading
 import ir.mmxkarimi.notemax.ui.components.UnifiedFloatingMenuBar
 import ir.mmxkarimi.notemax.ui.viewmodel.NotesUiState
-import ir.mmxkarimi.notemax.ui.viewmodel.ViewMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -98,7 +95,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
   uiState: NotesUiState,
-  onToggleViewMode: () -> Unit,
   onNoteClick: (Note) -> Unit,
   onNewNote: () -> Unit,
   onTogglePin: (Note) -> Unit,
@@ -111,7 +107,6 @@ fun HomeScreen(
 ) {
   val snackbarHostState = remember { SnackbarHostState() }
   val coroutineScope = rememberCoroutineScope()
-  val gridState = rememberLazyStaggeredGridState()
   val listState = rememberLazyListState()
   val haptics = LocalHapticFeedback.current
   val density = LocalDensity.current
@@ -129,9 +124,8 @@ fun HomeScreen(
   //
   //     translation = (dragBase - currentLayoutPosition) * settleFraction
   //
-  // That means we never have to patch offsets by hand when the list reorders, when the grid
-  // re-flows (staggered grids change lanes/heights after a move), or when auto-scroll moves the
-  // content. The card simply stays under the finger.
+  // That means we never have to patch offsets by hand when the list reorders or when auto-scroll
+  // moves the content. The card simply stays under the finger.
   // ---------------------------------------------------------------------------------------------
   var draggingNoteId by remember { mutableStateOf<Long?>(null) }
   // True after the finger lifts, while the card is still gliding into its slot.
@@ -143,7 +137,6 @@ fun HomeScreen(
   var localNotes by remember { mutableStateOf(uiState.activeNotes) }
   var externalChangeWhileDragging by remember { mutableStateOf(false) }
   val swapGuard = remember { SwapGuard() }
-  val isGridMode = uiState.viewMode == ViewMode.GRID
 
   // Never replace the working list while a drag is in progress.
   LaunchedEffect(uiState.activeNotes) {
@@ -159,20 +152,23 @@ fun HomeScreen(
 
   // --- Layout access ---------------------------------------------------------------------------
 
-  fun allBoxes(): List<ItemBox> =
-    if (isGridMode) {
-      gridState.layoutInfo.visibleItemsInfo.map {
-        ItemBox(
-          key = it.key,
-          index = it.index,
-          topLeft = Offset(it.offset.x.toFloat(), it.offset.y.toFloat()),
-          size = Size(it.size.width.toFloat(), it.size.height.toFloat())
-        )
-      }
-    } else {
-      val info = listState.layoutInfo
-      info.visibleItemsInfo.map {
-        ItemBox(
+  fun allBoxes(): List<ItemBox> {
+    val info = listState.layoutInfo
+    return info.visibleItemsInfo.map {
+      ItemBox(
+        key = it.key,
+        index = it.index,
+        topLeft = Offset(0f, it.offset.toFloat()),
+        size = Size(info.viewportSize.width.toFloat(), it.size.toFloat())
+      )
+    }
+  }
+
+  fun findBox(noteId: Long): ItemBox? {
+    val info = listState.layoutInfo
+    for (it in info.visibleItemsInfo) {
+      if (noteIdFromKey(it.key) == noteId) {
+        return ItemBox(
           key = it.key,
           index = it.index,
           topLeft = Offset(0f, it.offset.toFloat()),
@@ -180,43 +176,13 @@ fun HomeScreen(
         )
       }
     }
-
-  fun findBox(noteId: Long): ItemBox? {
-    if (isGridMode) {
-      for (it in gridState.layoutInfo.visibleItemsInfo) {
-        if (noteIdFromKey(it.key) == noteId) {
-          return ItemBox(
-            key = it.key,
-            index = it.index,
-            topLeft = Offset(it.offset.x.toFloat(), it.offset.y.toFloat()),
-            size = Size(it.size.width.toFloat(), it.size.height.toFloat())
-          )
-        }
-      }
-    } else {
-      val info = listState.layoutInfo
-      for (it in info.visibleItemsInfo) {
-        if (noteIdFromKey(it.key) == noteId) {
-          return ItemBox(
-            key = it.key,
-            index = it.index,
-            topLeft = Offset(0f, it.offset.toFloat()),
-            size = Size(info.viewportSize.width.toFloat(), it.size.toFloat())
-          )
-        }
-      }
-    }
     return null
   }
 
-  fun viewportStartEnd(): Pair<Float, Float> =
-    if (isGridMode) {
-      val info = gridState.layoutInfo
-      info.viewportStartOffset.toFloat() to info.viewportEndOffset.toFloat()
-    } else {
-      val info = listState.layoutInfo
-      info.viewportStartOffset.toFloat() to info.viewportEndOffset.toFloat()
-    }
+  fun viewportStartEnd(): Pair<Float, Float> {
+    val info = listState.layoutInfo
+    return info.viewportStartOffset.toFloat() to info.viewportEndOffset.toFloat()
+  }
 
   val dragTranslation: (Long) -> Offset = { noteId ->
     val box = findBox(noteId)
@@ -234,7 +200,7 @@ fun HomeScreen(
     if (swapGuard.isWaiting(own.index)) return
 
     val center = dragBase + Offset(own.size.width / 2f, own.size.height / 2f)
-    // Still above its own slot, nothing to do (prevents ping-pong in staggered layouts).
+    // Still above its own slot, nothing to do.
     if (own.contains(center)) return
 
     val fromNote = localNotes.firstOrNull { it.id == noteId } ?: return
@@ -295,13 +261,8 @@ fun HomeScreen(
     }
   }
 
-  val onDragGrid: (Long, Offset) -> Unit = { noteId, dragAmount ->
-    dragBase += dragAmount
-    moveIfHovering(noteId)
-  }
-
-  val onDragList: (Long, Offset) -> Unit = { noteId, dragAmount ->
-    // List mode only moves vertically.
+  val onDrag: (Long, Offset) -> Unit = { noteId, dragAmount ->
+    // List mode moves vertically.
     dragBase += Offset(0f, dragAmount.y)
     moveIfHovering(noteId)
   }
@@ -310,7 +271,7 @@ fun HomeScreen(
   // even when the finger is not moving. The edges are the real content edges
   // (viewportStart/EndOffset), so the bottom padding reserved for the floating menu bar counts as
   // "past the edge" and the list keeps scrolling until the last note is reachable.
-  LaunchedEffect(draggingNoteId, isDragReleased, isGridMode) {
+  LaunchedEffect(draggingNoteId, isDragReleased) {
     val noteId = draggingNoteId ?: return@LaunchedEffect
     if (isDragReleased) return@LaunchedEffect
 
@@ -321,7 +282,7 @@ fun HomeScreen(
         val centerY = dragBase.y + own.size.height / 2f
         val delta = autoScrollSpeed(centerY, top, bottom, edgeZonePx, maxScrollPerFramePx)
         if (delta != 0f) {
-          if (isGridMode) gridState.scrollBy(delta) else listState.scrollBy(delta)
+          listState.scrollBy(delta)
         }
         // Content may have moved under a stationary finger, so re-check what we hover.
         moveIfHovering(noteId)
@@ -335,8 +296,8 @@ fun HomeScreen(
     if (id == draggingNoteId) null else ReorderPlacementSpec
   }
 
-  val renderNote: @Composable (Note, Modifier, (Long, Offset) -> Unit) -> Unit =
-    { note, placement, onDrag ->
+  val renderNote: @Composable (Note, Modifier) -> Unit =
+    { note, placement ->
       val isDragging = note.id == draggingNoteId
       val itemModifier = rememberReorderModifier(
         noteId = note.id,
@@ -573,178 +534,125 @@ fun HomeScreen(
       ) {
         val currentNotes = localNotes
 
-        if (currentNotes.isEmpty()) {
-          // Empty State
-          Box(
+        if (uiState.isLoading) {
+          // Shimmer Skeleton Loading State
+          NoteSkeletonLoading(
             modifier = Modifier
-              .fillMaxSize()
-              .padding(32.dp),
-            contentAlignment = Alignment.Center
+              .fillMaxWidth()
+              .padding(top = 8.dp)
+          )
+        } else if (currentNotes.isEmpty()) {
+          // Empty State with smooth fade-in
+          AnimatedVisibility(
+            visible = true,
+            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
           ) {
-            Column(
-              horizontalAlignment = Alignment.CenterHorizontally,
-              verticalArrangement = Arrangement.Center
+            Box(
+              modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+              contentAlignment = Alignment.Center
             ) {
-              Box(
-                modifier = Modifier
-                  .size(72.dp)
-                  .clip(CircleShape)
-                  .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
+              Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
               ) {
-                Icon(
-                  imageVector = Icons.AutoMirrored.Filled.NoteAdd,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.primary,
-                  modifier = Modifier.size(36.dp)
+                Box(
+                  modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                  contentAlignment = Alignment.Center
+                ) {
+                  Icon(
+                    imageVector = Icons.AutoMirrored.Filled.NoteAdd,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                  )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                  text = stringResource(R.string.no_notes_yet),
+                  style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                  text = stringResource(R.string.no_notes_description),
+                  style = MaterialTheme.typography.bodySmall,
+                  textAlign = TextAlign.Center,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               }
-
-              Spacer(modifier = Modifier.height(16.dp))
-
-              Text(
-                text = stringResource(R.string.no_notes_yet),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-              )
-
-              Spacer(modifier = Modifier.height(6.dp))
-
-              Text(
-                text = stringResource(R.string.no_notes_description),
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
             }
           }
         } else {
           val pinnedNotes = remember(localNotes) { localNotes.filter { it.isPinned } }
           val unpinnedNotes = remember(localNotes) { localNotes.filter { !it.isPinned } }
 
-          // Grid or List View
-          if (isGridMode) {
-            LazyVerticalStaggeredGrid(
-              columns = StaggeredGridCells.Fixed(2),
-              state = gridState,
-              modifier = Modifier
-                .fillMaxSize()
-                .testTag("notes_staggered_grid"),
-              contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
-              horizontalArrangement = Arrangement.spacedBy(10.dp),
-              verticalItemSpacing = 10.dp
-            ) {
-              // Pinned Notes Section Header
-              if (pinnedNotes.isNotEmpty()) {
-                item(key = "header_pinned", span = StaggeredGridItemSpan.FullLine) {
+          // Single-column List View
+          LazyColumn(
+            state = listState,
+            modifier = Modifier
+              .fillMaxSize()
+              .testTag("notes_list_view"),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            if (pinnedNotes.isNotEmpty()) {
+              item(key = "header_pinned") {
+                Text(
+                  text = stringResource(R.string.pinned_section),
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.sp
+                  ),
+                  color = MaterialTheme.colorScheme.primary,
+                  modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                )
+              }
+
+              items(pinnedNotes, key = { "list_${it.id}" }) { note ->
+                renderNote(
+                  note,
+                  Modifier.animateItem(placementSpec = placementFor(note.id))
+                )
+              }
+
+              if (unpinnedNotes.isNotEmpty()) {
+                item(key = "header_unpinned") {
                   Text(
-                    text = stringResource(R.string.pinned_section),
+                    text = stringResource(R.string.others_section),
                     style = MaterialTheme.typography.labelSmall.copy(
                       fontWeight = FontWeight.ExtraBold,
                       letterSpacing = 1.sp
                     ),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 4.dp)
                   )
                 }
-
-                items(pinnedNotes, key = { "pinned_${it.id}" }) { note ->
-                  renderNote(
-                    note,
-                    Modifier.animateItem(placementSpec = placementFor(note.id)),
-                    onDragGrid
-                  )
-                }
-
-                if (unpinnedNotes.isNotEmpty()) {
-                  item(key = "header_unpinned", span = StaggeredGridItemSpan.FullLine) {
-                    Text(
-                      text = stringResource(R.string.others_section),
-                      style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.sp
-                      ),
-                      color = MaterialTheme.colorScheme.onSurfaceVariant,
-                      modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 4.dp)
-                    )
-                  }
-                }
-              }
-
-              val listToRender = if (pinnedNotes.isNotEmpty()) unpinnedNotes else currentNotes
-
-              items(listToRender, key = { "note_${it.id}" }) { note ->
-                renderNote(
-                  note,
-                  Modifier.animateItem(placementSpec = placementFor(note.id)),
-                  onDragGrid
-                )
               }
             }
-          } else {
-            // List View
-            LazyColumn(
-              state = listState,
-              modifier = Modifier
-                .fillMaxSize()
-                .testTag("notes_list_view"),
-              contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
-              verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-              if (pinnedNotes.isNotEmpty()) {
-                item(key = "header_pinned") {
-                  Text(
-                    text = stringResource(R.string.pinned_section),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                      fontWeight = FontWeight.ExtraBold,
-                      letterSpacing = 1.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                  )
-                }
 
-                items(pinnedNotes, key = { "list_${it.id}" }) { note ->
-                  renderNote(
-                    note,
-                    Modifier.animateItem(placementSpec = placementFor(note.id)),
-                    onDragList
-                  )
-                }
+            val listToRender = if (pinnedNotes.isNotEmpty()) unpinnedNotes else currentNotes
 
-                if (unpinnedNotes.isNotEmpty()) {
-                  item(key = "header_unpinned") {
-                    Text(
-                      text = stringResource(R.string.others_section),
-                      style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.sp
-                      ),
-                      color = MaterialTheme.colorScheme.onSurfaceVariant,
-                      modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 4.dp)
-                    )
-                  }
-                }
-              }
-
-              val listToRender = if (pinnedNotes.isNotEmpty()) unpinnedNotes else currentNotes
-
-              items(listToRender, key = { "list_${it.id}" }) { note ->
-                renderNote(
-                  note,
-                  Modifier.animateItem(placementSpec = placementFor(note.id)),
-                  onDragList
-                )
-              }
+            items(listToRender, key = { "list_${it.id}" }) { note ->
+              renderNote(
+                note,
+                Modifier.animateItem(placementSpec = placementFor(note.id))
+              )
             }
           }
         }
       }
 
-      // Streamlined Floating Menu Bar (ViewMode + Sort + Search + Add)
+      // Streamlined Floating Menu Bar (Search + Add)
       UnifiedFloatingMenuBar(
-        viewMode = uiState.viewMode,
-        onToggleViewMode = onToggleViewMode,
         onSearchClick = { showSearchSheet = true },
         onCreateNote = onNewNote,
         modifier = Modifier.align(Alignment.BottomCenter)

@@ -16,9 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -33,12 +31,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ir.mmxkarimi.notemax.R
-import ir.mmxkarimi.notemax.ui.viewmodel.ViewMode
 
 @Composable
 fun UnifiedFloatingMenuBar(
-  viewMode: ViewMode,
-  onToggleViewMode: () -> Unit,
   onSearchClick: () -> Unit,
   onCreateNote: () -> Unit,
   modifier: Modifier = Modifier
@@ -50,7 +45,7 @@ fun UnifiedFloatingMenuBar(
       .padding(bottom = 16.dp, start = 16.dp, end = 16.dp),
     contentAlignment = Alignment.BottomCenter
   ) {
-    // Streamlined Floating Pill Bar (ViewMode + Search + Add)
+    // Streamlined Floating Pill Bar (Search + Add)
     Surface(
       shape = RoundedCornerShape(32.dp),
       color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -72,25 +67,10 @@ fun UnifiedFloatingMenuBar(
     ) {
       Row(
         modifier = Modifier
-          .padding(horizontal = 10.dp, vertical = 6.dp),
+          .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        // View Mode Toggle (Grid <-> List)
-        IconButton(
-          onClick = onToggleViewMode,
-          modifier = Modifier
-            .size(42.dp)
-            .testTag("toggle_view_mode_button")
-        ) {
-          Icon(
-            imageVector = if (viewMode == ViewMode.GRID) Icons.Default.ViewAgenda else Icons.Default.GridView,
-            contentDescription = stringResource(if (viewMode == ViewMode.GRID) R.string.view_mode_list else R.string.view_mode_grid),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(21.dp)
-          )
-        }
-
         // Search Button
         IconButton(
           onClick = onSearchClick,
@@ -102,7 +82,7 @@ fun UnifiedFloatingMenuBar(
             imageVector = Icons.Default.Search,
             contentDescription = stringResource(R.string.search_notes),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(21.dp)
+            modifier = Modifier.size(22.dp)
           )
         }
 
