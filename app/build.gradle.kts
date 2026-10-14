@@ -14,8 +14,8 @@ android {
     applicationId = "ir.mmxkarimi.notemax"
     minSdk = 29
     targetSdk = 36
-    versionCode = 8
-    versionName = "1.9"
+    versionCode = 9
+    versionName = "1.9.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

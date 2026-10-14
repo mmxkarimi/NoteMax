@@ -6,7 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.view.View
+import android.net.Uri
+import android.os.Build
 import android.widget.RemoteViews
 import ir.mmxkarimi.notemax.MainActivity
 import ir.mmxkarimi.notemax.R
@@ -71,31 +72,46 @@ class NoteWidgetProvider : AppWidgetProvider() {
       views.setTextViewText(R.id.widget_title, titleText)
       views.setTextViewText(R.id.widget_date, note.formattedDateShort)
 
-      val parsedMarkdown = WidgetMarkdownParser.parse(note.content)
-      val contentText = if (parsedMarkdown.isNotEmpty()) {
-        parsedMarkdown
-      } else {
-        context.getString(R.string.widget_empty_content)
+      // Bind RemoteViewsService to the ListView for full scrollable markdown rendering
+      val serviceIntent = Intent(context, NoteWidgetService::class.java).apply {
+        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+        data = Uri.parse("notemax://widget/$appWidgetId/${System.currentTimeMillis()}")
       }
-      views.setTextViewText(R.id.widget_content, contentText)
+      views.setRemoteAdapter(R.id.widget_list_view, serviceIntent)
+      views.setEmptyView(R.id.widget_list_view, R.id.widget_empty_container)
 
-      views.setViewVisibility(R.id.widget_scroll_view, View.VISIBLE)
-      views.setViewVisibility(R.id.widget_empty_container, View.GONE)
-
-      // Click on note body opens MainActivity directly into Note Editor
+      // Set PendingIntent template on ListView (clicking any item opens MainActivity)
       val openNoteIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_VIEW
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_NOTE_ID, note.id)
+      }
+      val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+      } else {
+        PendingIntent.FLAG_UPDATE_CURRENT
       }
       val openPendingIntent = PendingIntent.getActivity(
         context,
         appWidgetId,
         openNoteIntent,
+        flags
+      )
+      views.setPendingIntentTemplate(R.id.widget_list_view, openPendingIntent)
+
+      // Header click directly opens this specific note
+      val headerIntent = Intent(context, MainActivity::class.java).apply {
+        action = Intent.ACTION_VIEW
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        putExtra(MainActivity.EXTRA_NOTE_ID, note.id)
+      }
+      val headerPendingIntent = PendingIntent.getActivity(
+        context,
+        200000 + appWidgetId,
+        headerIntent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       )
-      views.setOnClickPendingIntent(R.id.widget_scroll_view, openPendingIntent)
-      views.setOnClickPendingIntent(R.id.widget_title, openPendingIntent)
+      views.setOnClickPendingIntent(R.id.widget_header, headerPendingIntent)
+      views.setOnClickPendingIntent(R.id.widget_title, headerPendingIntent)
 
       // Click on switch button reopens NoteWidgetConfigureActivity
       val switchIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
@@ -111,6 +127,7 @@ class NoteWidgetProvider : AppWidgetProvider() {
       views.setOnClickPendingIntent(R.id.widget_btn_switch, switchPendingIntent)
 
       appWidgetManager.updateAppWidget(appWidgetId, views)
+      appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
     }
   }
 
@@ -122,8 +139,6 @@ class NoteWidgetProvider : AppWidgetProvider() {
   ) {
     views.setTextViewText(R.id.widget_title, context.getString(R.string.app_name))
     views.setTextViewText(R.id.widget_date, "")
-    views.setViewVisibility(R.id.widget_scroll_view, View.GONE)
-    views.setViewVisibility(R.id.widget_empty_container, View.VISIBLE)
 
     val configureIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
       putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
@@ -147,6 +162,7 @@ class NoteWidgetProvider : AppWidgetProvider() {
       val thisWidget = ComponentName(context, NoteWidgetProvider::class.java)
       val appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget) ?: return
       if (appWidgetIds.isNotEmpty()) {
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list_view)
         val intent = Intent(context, NoteWidgetProvider::class.java).apply {
           action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
           putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds)

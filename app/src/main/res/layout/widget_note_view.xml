@@ -42,41 +42,40 @@
             android:src="@drawable/ic_widget_edit" />
     </LinearLayout>
 
-    <!-- Scrollable Markdown Content Container -->
-    <ScrollView
-        android:id="@+id/widget_scroll_view"
+    <!-- Content container with ListView and Empty State -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="8dp"
-        android:layout_weight="1"
-        android:fillViewport="true">
+        android:layout_weight="1">
 
-        <TextView
-            android:id="@+id/widget_content"
+        <!-- Scrollable ListView containing Markdown blocks (supported on all Android versions) -->
+        <ListView
+            android:id="@+id/widget_list_view"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:lineSpacingExtra="3dp"
-            android:textColor="@color/widget_text_primary"
-            android:textSize="13sp" />
-    </ScrollView>
+            android:layout_height="match_parent"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:fadingEdge="none"
+            android:overScrollMode="never"
+            android:scrollbars="vertical" />
 
-    <!-- Empty State View -->
-    <LinearLayout
-        android:id="@+id/widget_empty_container"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/widget_empty_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <!-- Empty State View -->
+        <LinearLayout
+            android:id="@+id/widget_empty_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:gravity="center"
-            android:text="@string/widget_select_note"
-            android:textColor="@color/widget_text_secondary"
-            android:textSize="13sp" />
-    </LinearLayout>
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_empty_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/widget_select_note"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </FrameLayout>
 </LinearLayout>

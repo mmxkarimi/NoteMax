@@ -102,6 +102,7 @@ class NoteWidgetConfigureActivity : ComponentActivity() {
     val appWidgetManager = AppWidgetManager.getInstance(this)
     val provider = NoteWidgetProvider()
     provider.onUpdate(this, appWidgetManager, intArrayOf(appWidgetId))
+    appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
 
     val resultValue = Intent().apply {
       putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)

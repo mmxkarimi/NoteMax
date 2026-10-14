@@ -13,6 +13,88 @@ import android.text.style.URLSpan
 
 object WidgetMarkdownParser {
 
+  fun parseBlocks(markdown: String): List<CharSequence> {
+    if (markdown.isBlank()) return emptyList()
+
+    val blocks = mutableListOf<CharSequence>()
+    val lines = markdown.lines()
+    var inCodeBlock = false
+    val codeBlockBuilder = StringBuilder()
+    val paragraphBuilder = StringBuilder()
+
+    fun flushParagraph() {
+      if (paragraphBuilder.isNotBlank()) {
+        val parsed = parse(paragraphBuilder.toString().trim())
+        if (parsed.isNotBlank()) {
+          blocks.add(parsed)
+        }
+        paragraphBuilder.clear()
+      }
+    }
+
+    for (rawLine in lines) {
+      val trimmed = rawLine.trim()
+
+      if (trimmed.startsWith("```")) {
+        if (inCodeBlock) {
+          codeBlockBuilder.append(rawLine).append("\n")
+          val parsedCode = parse(codeBlockBuilder.toString().trim())
+          if (parsedCode.isNotBlank()) {
+            blocks.add(parsedCode)
+          }
+          codeBlockBuilder.clear()
+          inCodeBlock = false
+        } else {
+          flushParagraph()
+          inCodeBlock = true
+          codeBlockBuilder.append(rawLine).append("\n")
+        }
+        continue
+      }
+
+      if (inCodeBlock) {
+        codeBlockBuilder.append(rawLine).append("\n")
+        continue
+      }
+
+      val isStandaloneBlock = trimmed.startsWith("#") ||
+        trimmed.startsWith("- [ ]") || trimmed.startsWith("- [x]") || trimmed.startsWith("- [X]") ||
+        trimmed.startsWith("* [ ]") || trimmed.startsWith("* [x]") || trimmed.startsWith("* [X]") ||
+        trimmed.startsWith("- ") || trimmed.startsWith("* ") ||
+        trimmed.matches("^\\d+\\.\\s.*".toRegex()) ||
+        trimmed.startsWith("> ") ||
+        trimmed == "---" || trimmed == "***" || trimmed == "___"
+
+      if (isStandaloneBlock) {
+        flushParagraph()
+        val parsed = parse(rawLine)
+        if (parsed.isNotBlank()) {
+          blocks.add(parsed)
+        }
+      } else if (trimmed.isEmpty()) {
+        flushParagraph()
+      } else {
+        if (paragraphBuilder.isNotEmpty()) {
+          paragraphBuilder.append("\n")
+        }
+        paragraphBuilder.append(rawLine)
+      }
+    }
+
+    if (inCodeBlock && codeBlockBuilder.isNotBlank()) {
+      val parsed = parse(codeBlockBuilder.toString().trim())
+      if (parsed.isNotBlank()) blocks.add(parsed)
+    }
+
+    flushParagraph()
+
+    return if (blocks.isEmpty() && markdown.isNotBlank()) {
+      listOf(parse(markdown))
+    } else {
+      blocks
+    }
+  }
+
   fun parse(markdown: String): CharSequence {
     if (markdown.isBlank()) return ""
 
