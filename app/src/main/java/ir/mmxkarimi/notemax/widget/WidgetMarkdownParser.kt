@@ -4,6 +4,7 @@ import android.graphics.Typeface
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
 import android.text.style.QuoteSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.StrikethroughSpan
@@ -11,12 +12,23 @@ import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.text.style.URLSpan
 
+enum class CheckState {
+  NONE,
+  UNCHECKED,
+  CHECKED
+}
+
+data class WidgetItem(
+  val text: CharSequence,
+  val checkState: CheckState = CheckState.NONE
+)
+
 object WidgetMarkdownParser {
 
-  fun parseBlocks(markdown: String): List<CharSequence> {
+  fun parseBlocks(markdown: String): List<WidgetItem> {
     if (markdown.isBlank()) return emptyList()
 
-    val blocks = mutableListOf<CharSequence>()
+    val blocks = mutableListOf<WidgetItem>()
     val lines = markdown.lines()
     var inCodeBlock = false
     val codeBlockBuilder = StringBuilder()
@@ -26,7 +38,7 @@ object WidgetMarkdownParser {
       if (paragraphBuilder.isNotBlank()) {
         val parsed = parse(paragraphBuilder.toString().trim())
         if (parsed.isNotBlank()) {
-          blocks.add(parsed)
+          blocks.add(WidgetItem(parsed, CheckState.NONE))
         }
         paragraphBuilder.clear()
       }
@@ -40,7 +52,7 @@ object WidgetMarkdownParser {
           codeBlockBuilder.append(rawLine).append("\n")
           val parsedCode = parse(codeBlockBuilder.toString().trim())
           if (parsedCode.isNotBlank()) {
-            blocks.add(parsedCode)
+            blocks.add(WidgetItem(parsedCode, CheckState.NONE))
           }
           codeBlockBuilder.clear()
           inCodeBlock = false
@@ -57,9 +69,43 @@ object WidgetMarkdownParser {
         continue
       }
 
+      // Check for uncompleted checklist item
+      if (trimmed.startsWith("- [ ]") || trimmed.startsWith("* [ ]")) {
+        flushParagraph()
+        val itemText = if (trimmed.startsWith("- [ ] ") || trimmed.startsWith("* [ ] ")) {
+          trimmed.substring(6)
+        } else {
+          trimmed.removePrefix("- [ ]").removePrefix("* [ ]").trimStart()
+        }
+        val ssb = SpannableStringBuilder()
+        appendInlineFormatted(ssb, itemText)
+        blocks.add(WidgetItem(ssb, CheckState.UNCHECKED))
+        continue
+      }
+
+      // Check for completed checklist item
+      if (trimmed.startsWith("- [x]") || trimmed.startsWith("- [X]") ||
+        trimmed.startsWith("* [x]") || trimmed.startsWith("* [X]")) {
+        flushParagraph()
+        val itemText = if (trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") ||
+          trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ")) {
+          trimmed.substring(6)
+        } else {
+          trimmed.removePrefix("- [x]").removePrefix("- [X]")
+            .removePrefix("* [x]").removePrefix("* [X]").trimStart()
+        }
+        val ssb = SpannableStringBuilder()
+        appendInlineFormatted(ssb, itemText)
+        val end = ssb.length
+        if (end > 0) {
+          ssb.setSpan(StrikethroughSpan(), 0, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+          ssb.setSpan(ForegroundColorSpan(0xFF909282.toInt()), 0, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        blocks.add(WidgetItem(ssb, CheckState.CHECKED))
+        continue
+      }
+
       val isStandaloneBlock = trimmed.startsWith("#") ||
-        trimmed.startsWith("- [ ]") || trimmed.startsWith("- [x]") || trimmed.startsWith("- [X]") ||
-        trimmed.startsWith("* [ ]") || trimmed.startsWith("* [x]") || trimmed.startsWith("* [X]") ||
         trimmed.startsWith("- ") || trimmed.startsWith("* ") ||
         trimmed.matches("^\\d+\\.\\s.*".toRegex()) ||
         trimmed.startsWith("> ") ||
@@ -69,7 +115,7 @@ object WidgetMarkdownParser {
         flushParagraph()
         val parsed = parse(rawLine)
         if (parsed.isNotBlank()) {
-          blocks.add(parsed)
+          blocks.add(WidgetItem(parsed, CheckState.NONE))
         }
       } else if (trimmed.isEmpty()) {
         flushParagraph()
@@ -83,13 +129,13 @@ object WidgetMarkdownParser {
 
     if (inCodeBlock && codeBlockBuilder.isNotBlank()) {
       val parsed = parse(codeBlockBuilder.toString().trim())
-      if (parsed.isNotBlank()) blocks.add(parsed)
+      if (parsed.isNotBlank()) blocks.add(WidgetItem(parsed, CheckState.NONE))
     }
 
     flushParagraph()
 
     return if (blocks.isEmpty() && markdown.isNotBlank()) {
-      listOf(parse(markdown))
+      listOf(WidgetItem(parse(markdown), CheckState.NONE))
     } else {
       blocks
     }
@@ -174,23 +220,33 @@ object WidgetMarkdownParser {
         }
 
         // Checklist uncompleted
-        trimmed.startsWith("- [ ] ") || trimmed.startsWith("* [ ] ") -> {
-          val itemText = trimmed.substring(6)
-          ssb.append("☐ ")
+        trimmed.startsWith("- [ ]") || trimmed.startsWith("* [ ]") -> {
+          val itemText = if (trimmed.startsWith("- [ ] ") || trimmed.startsWith("* [ ] ")) {
+            trimmed.substring(6)
+          } else {
+            trimmed.removePrefix("- [ ]").removePrefix("* [ ]").trimStart()
+          }
           appendInlineFormatted(ssb, itemText)
           ssb.append("\n")
         }
 
         // Checklist completed
-        trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") ||
-          trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> {
-          val itemText = trimmed.substring(6)
-          val start = ssb.length
-          ssb.append("☑ ")
+        trimmed.startsWith("- [x]") || trimmed.startsWith("- [X]") ||
+          trimmed.startsWith("* [x]") || trimmed.startsWith("* [X]") -> {
+          val itemText = if (trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") ||
+            trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ")) {
+            trimmed.substring(6)
+          } else {
+            trimmed.removePrefix("- [x]").removePrefix("- [X]")
+              .removePrefix("* [x]").removePrefix("* [X]").trimStart()
+          }
           val contentStart = ssb.length
           appendInlineFormatted(ssb, itemText)
           val end = ssb.length
-          ssb.setSpan(StrikethroughSpan(), contentStart, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+          if (end > contentStart) {
+            ssb.setSpan(StrikethroughSpan(), contentStart, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            ssb.setSpan(ForegroundColorSpan(0xFF909282.toInt()), contentStart, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+          }
           ssb.append("\n")
         }
 

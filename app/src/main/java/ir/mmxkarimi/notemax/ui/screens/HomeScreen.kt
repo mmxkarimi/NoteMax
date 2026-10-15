@@ -65,6 +65,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -650,6 +652,29 @@ fun HomeScreen(
           }
         }
       }
+
+      // Soft fade at the bottom. It only shows when there is more to scroll.
+      val bottomFadeAlpha by animateFloatAsState(
+        targetValue = if (listState.canScrollForward) 1f else 0f,
+        label = "bottom_fade_alpha"
+      )
+      val fadeColor = MaterialTheme.colorScheme.background
+      Box(
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .fillMaxWidth()
+          .height(140.dp)
+          .graphicsLayer { alpha = bottomFadeAlpha }
+          .background(
+            Brush.verticalGradient(
+              colors = listOf(
+                Color.Transparent,
+                fadeColor.copy(alpha = 0.85f),
+                fadeColor
+              )
+            )
+          )
+      )
 
       // Streamlined Floating Menu Bar (Search + Add)
       UnifiedFloatingMenuBar(

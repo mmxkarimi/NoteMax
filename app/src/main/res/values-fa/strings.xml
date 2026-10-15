@@ -39,6 +39,7 @@
     <string name="widget_select_note">برای انتخاب یادداشت ضربه بزنید</string>
     <string name="widget_configure_title">انتخاب یادداشت برای ویجت</string>
     <string name="widget_empty_content">محتوایی در این یادداشت وجود ندارد</string>
+    <string name="widget_settings">تنظیمات ویجت</string>
 
     <!-- Editor -->
     <string name="note_title_placeholder">عنوان</string>

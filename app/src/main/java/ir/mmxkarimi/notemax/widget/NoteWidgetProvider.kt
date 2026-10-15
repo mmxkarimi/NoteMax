@@ -70,7 +70,6 @@ class NoteWidgetProvider : AppWidgetProvider() {
 
       val titleText = if (note.title.isNotBlank()) note.title else context.getString(R.string.untitled_note)
       views.setTextViewText(R.id.widget_title, titleText)
-      views.setTextViewText(R.id.widget_date, note.formattedDateShort)
 
       // Bind RemoteViewsService to the ListView for full scrollable markdown rendering
       val serviceIntent = Intent(context, NoteWidgetService::class.java).apply {
@@ -113,18 +112,18 @@ class NoteWidgetProvider : AppWidgetProvider() {
       views.setOnClickPendingIntent(R.id.widget_header, headerPendingIntent)
       views.setOnClickPendingIntent(R.id.widget_title, headerPendingIntent)
 
-      // Click on switch button reopens NoteWidgetConfigureActivity
-      val switchIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
+      // Click on settings button reopens NoteWidgetConfigureActivity
+      val settingsIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
         putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
       }
-      val switchPendingIntent = PendingIntent.getActivity(
+      val settingsPendingIntent = PendingIntent.getActivity(
         context,
         100000 + appWidgetId,
-        switchIntent,
+        settingsIntent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       )
-      views.setOnClickPendingIntent(R.id.widget_btn_switch, switchPendingIntent)
+      views.setOnClickPendingIntent(R.id.widget_btn_settings, settingsPendingIntent)
 
       appWidgetManager.updateAppWidget(appWidgetId, views)
       appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
@@ -138,7 +137,6 @@ class NoteWidgetProvider : AppWidgetProvider() {
     appWidgetManager: AppWidgetManager
   ) {
     views.setTextViewText(R.id.widget_title, context.getString(R.string.app_name))
-    views.setTextViewText(R.id.widget_date, "")
 
     val configureIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
       putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
@@ -152,6 +150,7 @@ class NoteWidgetProvider : AppWidgetProvider() {
     )
     views.setOnClickPendingIntent(R.id.widget_root, configurePendingIntent)
     views.setOnClickPendingIntent(R.id.widget_empty_container, configurePendingIntent)
+    views.setOnClickPendingIntent(R.id.widget_btn_settings, configurePendingIntent)
 
     appWidgetManager.updateAppWidget(appWidgetId, views)
   }

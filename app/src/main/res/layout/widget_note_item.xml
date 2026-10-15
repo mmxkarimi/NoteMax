@@ -3,15 +3,28 @@
     android:id="@+id/widget_item_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingTop="2dp"
-    android:paddingBottom="2dp">
+    android:gravity="top|start"
+    android:orientation="horizontal"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
+
+    <ImageView
+        android:id="@+id/widget_item_checkbox"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginTop="1dp"
+        android:layout_marginEnd="8dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/widget_item_text"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_weight="1"
         android:lineSpacingExtra="3dp"
+        android:textAlignment="viewStart"
         android:textColor="@color/widget_text_primary"
         android:textSize="13sp" />
 </LinearLayout>

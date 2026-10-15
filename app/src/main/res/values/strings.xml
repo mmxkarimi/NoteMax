@@ -39,6 +39,7 @@
     <string name="widget_select_note">Tap to select a note</string>
     <string name="widget_configure_title">Select Note for Widget</string>
     <string name="widget_empty_content">No content in this note</string>
+    <string name="widget_settings">Widget settings</string>
 
     <!-- Editor -->
     <string name="note_title_placeholder">Title</string>

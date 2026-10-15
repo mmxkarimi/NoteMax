@@ -3,6 +3,7 @@ package ir.mmxkarimi.notemax.widget
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import ir.mmxkarimi.notemax.MainActivity
@@ -27,7 +28,7 @@ class NoteWidgetFactory(
     AppWidgetManager.INVALID_APPWIDGET_ID
   )
   private var noteId: Long = 0L
-  private val blocks = mutableListOf<CharSequence>()
+  private val items = mutableListOf<WidgetItem>()
 
   override fun onCreate() {
     loadData()
@@ -38,7 +39,7 @@ class NoteWidgetFactory(
   }
 
   private fun loadData() {
-    blocks.clear()
+    items.clear()
     noteId = NoteWidgetPrefs.loadNoteId(context, appWidgetId)
     if (noteId == 0L) return
 
@@ -49,29 +50,45 @@ class NoteWidgetFactory(
 
     if (entity != null && !entity.isTrashed && entity.content.isNotBlank()) {
       val parsed = WidgetMarkdownParser.parseBlocks(entity.content)
-      blocks.addAll(parsed)
+      items.addAll(parsed)
     }
   }
 
   override fun onDestroy() {
-    blocks.clear()
+    items.clear()
   }
 
-  override fun getCount(): Int = blocks.size
+  override fun getCount(): Int = items.size
 
   override fun getViewAt(position: Int): RemoteViews {
-    if (position !in blocks.indices) {
+    if (position !in items.indices) {
       return RemoteViews(context.packageName, R.layout.widget_note_item)
     }
 
+    val item = items[position]
     val rv = RemoteViews(context.packageName, R.layout.widget_note_item)
-    rv.setTextViewText(R.id.widget_item_text, blocks[position])
+    rv.setTextViewText(R.id.widget_item_text, item.text)
 
-    // Fill-in Intent to open note when item is tapped
+    when (item.checkState) {
+      CheckState.UNCHECKED -> {
+        rv.setViewVisibility(R.id.widget_item_checkbox, View.VISIBLE)
+        rv.setImageViewResource(R.id.widget_item_checkbox, R.drawable.ic_widget_checkbox_unchecked)
+      }
+      CheckState.CHECKED -> {
+        rv.setViewVisibility(R.id.widget_item_checkbox, View.VISIBLE)
+        rv.setImageViewResource(R.id.widget_item_checkbox, R.drawable.ic_widget_checkbox_checked)
+      }
+      CheckState.NONE -> {
+        rv.setViewVisibility(R.id.widget_item_checkbox, View.GONE)
+      }
+    }
+
+    // Fill-in Intent to open note when item or checkbox is tapped
     val fillInIntent = Intent().apply {
       putExtra(MainActivity.EXTRA_NOTE_ID, noteId)
     }
     rv.setOnClickFillInIntent(R.id.widget_item_root, fillInIntent)
+    rv.setOnClickFillInIntent(R.id.widget_item_checkbox, fillInIntent)
 
     return rv
   }
