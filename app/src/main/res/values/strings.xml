@@ -41,6 +41,10 @@
     <string name="widget_empty_content">No content in this note</string>
     <string name="widget_settings">Widget settings</string>
 
+    <!-- App Shortcuts & Actions -->
+    <string name="shortcut_new_note_short">New note</string>
+    <string name="shortcut_new_note_long">Create a new note</string>
+
     <!-- Editor -->
     <string name="note_title_placeholder">Title</string>
     <string name="note_body_placeholder">Note</string>

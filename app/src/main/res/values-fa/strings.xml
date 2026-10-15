@@ -41,6 +41,10 @@
     <string name="widget_empty_content">محتوایی در این یادداشت وجود ندارد</string>
     <string name="widget_settings">تنظیمات ویجت</string>
 
+    <!-- App Shortcuts & Actions -->
+    <string name="shortcut_new_note_short">یادداشت جدید</string>
+    <string name="shortcut_new_note_long">ایجاد یادداشت جدید</string>
+
     <!-- Editor -->
     <string name="note_title_placeholder">عنوان</string>
     <string name="note_body_placeholder">یادداشت...</string>

@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
 
   companion object {
     const val EXTRA_NOTE_ID = "ir.mmxkarimi.notemax.EXTRA_NOTE_ID"
+    const val ACTION_NEW_NOTE = "ir.mmxkarimi.notemax.ACTION_NEW_NOTE"
   }
 
   private val database by lazy { AppDatabase.getInstance(applicationContext) }
@@ -51,6 +52,9 @@ class MainActivity : ComponentActivity() {
   }
 
   private var initialTargetNoteId by mutableStateOf<Long?>(null)
+  private var shouldCreateNewNote by mutableStateOf(false)
+  private var pendingInitialTitle by mutableStateOf("")
+  private var pendingInitialContent by mutableStateOf("")
 
   var onSaveCurrentDraft: (() -> Unit)? = null
 
@@ -83,7 +87,29 @@ class MainActivity : ComponentActivity() {
   }
 
   private fun handleNoteIntent(intent: Intent?) {
-    val noteId = intent?.getLongExtra(EXTRA_NOTE_ID, 0L) ?: 0L
+    if (intent == null) return
+
+    val action = intent.action
+    val isNewNoteAction = action == ACTION_NEW_NOTE ||
+      action == "com.google.android.gms.actions.CREATE_NOTE" ||
+      action == "android.intent.action.CREATE_NOTE" ||
+      intent.getStringExtra("action") == "new_note"
+
+    if (isNewNoteAction) {
+      val title = intent.getStringExtra(Intent.EXTRA_SUBJECT)
+        ?: intent.getStringExtra(Intent.EXTRA_TITLE)
+        ?: intent.getStringExtra("name")
+        ?: ""
+      val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+        ?: intent.getStringExtra("text")
+        ?: ""
+      pendingInitialTitle = title
+      pendingInitialContent = text
+      shouldCreateNewNote = true
+      return
+    }
+
+    val noteId = intent.getLongExtra(EXTRA_NOTE_ID, 0L)
     if (noteId > 0L) {
       initialTargetNoteId = noteId
     }
@@ -103,6 +129,21 @@ class MainActivity : ComponentActivity() {
   private fun MainAppContent() {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+
+    LaunchedEffect(shouldCreateNewNote) {
+      if (shouldCreateNewNote) {
+        onSaveCurrentDraft?.invoke()
+        val newNote = Note(
+          title = pendingInitialTitle,
+          content = pendingInitialContent,
+          isChecklist = false
+        )
+        currentScreen = Screen.Editor(newNote)
+        shouldCreateNewNote = false
+        pendingInitialTitle = ""
+        pendingInitialContent = ""
+      }
+    }
 
     LaunchedEffect(initialTargetNoteId, uiState.activeNotes) {
       val targetId = initialTargetNoteId ?: return@LaunchedEffect
