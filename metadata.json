@@ -1,0 +1,5 @@
+{
+  "name": "NoteMax",
+  "description": "Expressive Material 3 dynamic-color note-taking app with checklists, bi-directional text support, and smooth animations.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="actions.intent.CREATE_NOTE">
+        <intent
+            android:action="ir.mmxkarimi.notemax.ACTION_NEW_NOTE"
+            android:targetPackage="ir.mmxkarimi.notemax"
+            android:targetClass="ir.mmxkarimi.notemax.MainActivity">
+            <parameter
+                android:name="note.text"
+                android:key="text" />
+            <parameter
+                android:name="note.name"
+                android:key="name" />
+        </intent>
+    </capability>
+
+    <shortcut
+        android:shortcutId="new_note"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_new_note"
+        android:shortcutShortLabel="@string/shortcut_new_note_short"
+        android:shortcutLongLabel="@string/shortcut_new_note_long">
+        <intent
+            android:action="ir.mmxkarimi.notemax.ACTION_NEW_NOTE"
+            android:targetPackage="ir.mmxkarimi.notemax"
+            android:targetClass="ir.mmxkarimi.notemax.MainActivity" />
+        <capability-binding android:key="actions.intent.CREATE_NOTE" />
+    </shortcut>
+</shortcuts>

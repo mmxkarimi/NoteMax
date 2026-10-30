@@ -1,0 +1,179 @@
+name: Deploy Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure gradlew is executable
+        run: |
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+          else
+            echo "ERROR: ./gradlew not found" >&2
+            exit 1
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Gradle helper
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Gradle directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Validate required secrets
+        id: check-secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=0
+          for s in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            val="${!s}"
+            if [ -z "$val" ]; then
+              echo "Missing required secret: $s" >&2
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 1 ]; then
+            echo "::error::One or more required secrets are missing. Set them in repository or org secrets."
+            exit 1
+          fi
+
+      - name: Decode keystore (safe)
+        id: decode-keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          # Ensure destination directory exists
+          mkdir -p app
+
+          # Decode the keystore into app/release.jks
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/release.jks || {
+            echo "::error::Failed to decode ANDROID_KEYSTORE_BASE64 into app/release.jks" >&2
+            exit 1
+          }
+
+          chmod 600 app/release.jks
+          ls -l app/release.jks
+
+      - name: Build signed APKs (x86_64, x86, armeabi-v7a, arm64-v8a, universal)
+        id: build
+        run: |
+          # Needs ABI splits + universal APK enabled in app/build.gradle(.kts)
+          ./gradlew assembleRelease --no-daemon --console=plain \
+            -Pandroid.injected.signing.store.file="${SIGNING_STORE_FILE}" \
+            -Pandroid.injected.signing.store.password="${SIGNING_STORE_PASSWORD}" \
+            -Pandroid.injected.signing.key.alias="${SIGNING_ANDROID_KEY_ALIAS}" \
+            -Pandroid.injected.signing.key.password="${SIGNING_ANDROID_KEY_PASSWORD}"
+        env:
+          SIGNING_STORE_FILE: ${{ github.workspace }}/app/release.jks
+          SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SIGNING_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SIGNING_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Collect APKs and create SHA-256 files
+        id: collect
+        run: |
+          # Adjust path if your module uses a different name than app/
+          apk_dir="app/build/outputs/apk/release"
+          mkdir -p dist
+
+          # Gradle names: <module>-<abi>-release.apk
+          missing=0
+          for abi in x86_64 x86 armeabi-v7a arm64-v8a universal; do
+            src=$(ls "$apk_dir"/*-"$abi"-release.apk 2>/dev/null | head -n 1 || true)
+            if [ -z "$src" ]; then
+              echo "::error::Missing APK for: $abi" >&2
+              missing=1
+              continue
+            fi
+            cp "$src" "dist/$(basename "$src")"
+          done
+
+          if [ "$missing" -eq 1 ]; then
+            echo "Files found in $apk_dir:" >&2
+            ls -la "$apk_dir" || true
+            exit 1
+          fi
+
+          # One .sha256 file per APK (works with: sha256sum -c file.apk.sha256)
+          cd dist
+          for f in *.apk; do
+            sha256sum "$f" > "$f.sha256"
+          done
+
+          echo "Files ready:"
+          ls -l
+          cat *.sha256
+
+      - name: Upload APKs and checksums (for debugging / downloads)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apks
+          path: |
+            dist/*.apk
+            dist/*.sha256
+
+      - name: Get version from tag
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=untagged-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        id: gh-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ steps.version.outputs.VERSION }}
+          generate_release_notes: true
+          files: |
+            dist/*.apk
+            dist/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup keystore
+        if: always()
+        run: |
+          if [ -f app/release.jks ]; then
+            shred -u app/release.jks || rm -f app/release.jks
+          fi
