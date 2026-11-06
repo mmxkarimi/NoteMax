@@ -74,4 +74,72 @@
     <string name="copy_code">کپی کد</string>
     <string name="copied_to_clipboard">در حافظه کپی شد</string>
     <string name="untitled_note">یادداشت بدون عنوان</string>
+
+    <!-- Redesign: navigation & actions -->
+    <string name="action_new_note">یادداشت جدید</string>
+    <string name="action_archive">بایگانی</string>
+    <string name="action_unarchive">خروج از بایگانی</string>
+    <string name="action_undo">بازگردانی</string>
+    <string name="action_empty_trash">خالی کردن سطل زباله</string>
+    <string name="action_delete_forever">حذف دائمی</string>
+    <string name="action_remove_tag">حذف برچسب</string>
+    <string name="view_list">نمای فهرستی</string>
+    <string name="view_grid">نمای شبکه‌ای</string>
+    <string name="nav_archive">بایگانی</string>
+    <string name="nav_trash">سطل زباله</string>
+    <string name="nav_settings">تنظیمات</string>
+
+    <!-- Filters, selection, feedback -->
+    <string name="filter_all">همه</string>
+    <string name="filter_clear">پاک کردن فیلتر</string>
+    <string name="no_filter_results">یادداشتی با این برچسب نیست</string>
+    <string name="no_filter_results_description">فیلتر را پاک کنید تا همه یادداشت‌ها را ببینید</string>
+    <string name="snackbar_moved_to_trash">به سطل زباله منتقل شد</string>
+    <string name="snackbar_archived">بایگانی شد</string>
+    <plurals name="selected_count">
+        <item quantity="one">%1$d انتخاب شده</item>
+        <item quantity="other">%1$d انتخاب شده</item>
+    </plurals>
+
+    <!-- Colour & tags -->
+    <string name="color_none">بدون رنگ</string>
+    <string name="tags_placeholder">یک برچسب بنویسید و تأیید کنید</string>
+    <string name="options_color">رنگ</string>
+    <string name="options_tags">برچسب‌ها</string>
+    <string name="options_color_and_tags">رنگ و برچسب‌ها</string>
+
+    <!-- Trash & archive -->
+    <string name="trash_empty_title">سطل زباله خالی است</string>
+    <string name="trash_empty_description">یادداشت‌هایی که حذف می‌کنید تا پیش از حذف دائمی اینجا می‌مانند</string>
+    <string name="archive_empty_title">چیزی بایگانی نشده است</string>
+    <string name="archive_empty_description">یادداشت‌هایی را که نگه می‌دارید اما در صفحه اصلی لازم ندارید بایگانی کنید</string>
+    <string name="dialog_empty_trash_title">خالی کردن سطل زباله</string>
+    <string name="dialog_empty_trash_message">همه یادداشت‌های سطل زباله برای همیشه حذف می‌شوند و بازگشتی ندارد.</string>
+    <plurals name="trash_retention_info">
+        <item quantity="one">یادداشت‌های سطل زباله پس از %1$d روز خودکار حذف می‌شوند.</item>
+        <item quantity="other">یادداشت‌های سطل زباله پس از %1$d روز خودکار حذف می‌شوند.</item>
+    </plurals>
+
+    <!-- Settings -->
+    <string name="settings_appearance">ظاهر</string>
+    <string name="settings_theme">پوسته</string>
+    <string name="theme_system">سیستم</string>
+    <string name="theme_light">روشن</string>
+    <string name="theme_dark">تیره</string>
+    <string name="settings_dynamic_color">رنگ‌های تصویر زمینه</string>
+    <string name="settings_dynamic_color_desc">به‌جای رنگ سبز لیمویی نوت‌مکس از رنگ‌های تصویر زمینه استفاده شود</string>
+    <string name="settings_dynamic_color_unsupported">نیازمند اندروید ۱۲ یا بالاتر</string>
+    <string name="settings_notes">یادداشت‌ها</string>
+    <string name="settings_grid_view">نمای شبکه‌ای</string>
+    <string name="settings_grid_view_desc">نمایش یادداشت‌ها در دو ستون</string>
+    <string name="settings_sort">مرتب‌سازی یادداشت‌ها</string>
+    <string name="sort_manual">دستی</string>
+    <string name="sort_edited">آخرین ویرایش</string>
+    <string name="sort_created">تاریخ ایجاد</string>
+    <string name="sort_title">عنوان</string>
+    <string name="settings_trash_retention">خالی شدن خودکار سطل زباله پس از</string>
+    <string name="retention_never">هرگز</string>
+    <string name="retention_days">%1$d روز</string>
+    <string name="settings_about">درباره</string>
+    <string name="settings_about_text">نوت‌مکس یادداشت‌های شما را روی همین دستگاه نگه می‌دارد. مارک‌داون، فهرست کار و برچسب، بدون نیاز به حساب کاربری.</string>
 </resources>

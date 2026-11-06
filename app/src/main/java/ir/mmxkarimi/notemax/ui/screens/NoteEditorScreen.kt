@@ -22,12 +22,18 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -75,6 +81,10 @@ import ir.mmxkarimi.notemax.data.model.Note
 import ir.mmxkarimi.notemax.ui.components.CenteredDeleteConfirmDialog
 import ir.mmxkarimi.notemax.ui.components.EditorFloatingBar
 import ir.mmxkarimi.notemax.ui.components.MarkdownRenderer
+import ir.mmxkarimi.notemax.ui.components.NoteOptionsSheet
+import ir.mmxkarimi.notemax.ui.components.TagPill
+import ir.mmxkarimi.notemax.ui.theme.NoteColors
+import ir.mmxkarimi.notemax.ui.theme.isAppDark
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -83,6 +93,7 @@ import java.util.Locale
 @Composable
 fun NoteEditorScreen(
   initialNote: Note?,
+  tagSuggestions: List<String> = emptyList(),
   onSaveAndClose: (Note) -> Unit,
   onDeleteNote: (Note) -> Unit,
   onNavigateBack: () -> Unit,
@@ -108,6 +119,11 @@ fun NoteEditorScreen(
     mutableStateOf(TextFieldValue(text = initialNote?.content ?: ""))
   }
   var isPinned by remember { mutableStateOf(initialNote?.isPinned ?: false) }
+  var colorIndex by remember { mutableStateOf(initialNote?.colorHex ?: 0L) }
+  var tags by remember { mutableStateOf(initialNote?.tags ?: emptyList()) }
+  var isArchived by remember { mutableStateOf(initialNote?.isArchived ?: false) }
+  var showOptionsSheet by remember { mutableStateOf(false) }
+  var showOverflow by remember { mutableStateOf(false) }
   var isPreviewMode by remember(initialNote?.id) {
     mutableStateOf(initialNote != null && initialNote.id != 0L)
   }
@@ -116,6 +132,9 @@ fun NoteEditorScreen(
   var lastSavedTitle by remember { mutableStateOf(initialNote?.title ?: "") }
   var lastSavedContent by remember { mutableStateOf(initialNote?.content ?: "") }
   var lastSavedPinned by remember { mutableStateOf(initialNote?.isPinned ?: false) }
+  var lastSavedColor by remember { mutableStateOf(initialNote?.colorHex ?: 0L) }
+  var lastSavedTags by remember { mutableStateOf(initialNote?.tags ?: emptyList()) }
+  var lastSavedArchived by remember { mutableStateOf(initialNote?.isArchived ?: false) }
 
   fun saveCurrentNote(shouldClose: Boolean = true) {
     val trimmedTitle = title.trim()
@@ -137,7 +156,10 @@ fun NoteEditorScreen(
     // If an existing note was opened and left without any changes:
     val hasChanged = trimmedTitle != lastSavedTitle.trim() ||
       trimmedContent != lastSavedContent.trim() ||
-      isPinned != lastSavedPinned
+      isPinned != lastSavedPinned ||
+      colorIndex != lastSavedColor ||
+      tags != lastSavedTags ||
+      isArchived != lastSavedArchived
 
     if (!hasChanged) {
       if (shouldClose) {
@@ -151,8 +173,10 @@ fun NoteEditorScreen(
       title = trimmedTitle,
       content = trimmedContent,
       isChecklist = false,
-      colorHex = 0L,
+      colorHex = colorIndex,
       isPinned = isPinned,
+      isArchived = isArchived,
+      tags = tags,
       createdAt = currentCreatedAt,
       updatedAt = System.currentTimeMillis(),
       orderIndex = currentOrderIndex
@@ -168,6 +192,9 @@ fun NoteEditorScreen(
       lastSavedTitle = trimmedTitle
       lastSavedContent = trimmedContent
       lastSavedPinned = isPinned
+      lastSavedColor = colorIndex
+      lastSavedTags = tags
+      lastSavedArchived = isArchived
     }
   }
 
@@ -409,12 +436,23 @@ fun NoteEditorScreen(
     }
   }
 
+  if (showOptionsSheet) {
+    NoteOptionsSheet(
+      colorIndex = colorIndex,
+      tags = tags,
+      tagSuggestions = tagSuggestions,
+      onColorChange = { colorIndex = it },
+      onTagsChange = { tags = it },
+      onDismiss = { showOptionsSheet = false }
+    )
+  }
+
   Scaffold(
     modifier = modifier
       .fillMaxSize()
       .testTag("note_editor_screen"),
     contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    containerColor = MaterialTheme.colorScheme.background,
+    containerColor = NoteColors.resolve(colorIndex, isAppDark()) ?: MaterialTheme.colorScheme.background,
     snackbarHost = { SnackbarHost(snackbarHostState) },
     topBar = {
       TopAppBar(
@@ -441,7 +479,7 @@ fun NoteEditorScreen(
               Icon(
                 imageVector = Icons.Default.Edit,
                 contentDescription = stringResource(R.string.tool_edit),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
               )
             } else {
               Icon(
@@ -464,38 +502,63 @@ fun NoteEditorScreen(
             )
           }
 
-          // Share Button
-          IconButton(
-            onClick = {
-              val currentContent = contentTextFieldValue.text
-              val sendIntent: Intent = Intent().apply {
-                action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_TITLE, title)
-                putExtra(Intent.EXTRA_TEXT, "$title\n\n$currentContent")
-                type = "text/plain"
-              }
-              context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.action_share)))
-            },
-            modifier = Modifier.testTag("editor_share_button")
-          ) {
-            Icon(
-              imageVector = Icons.Default.Share,
-              contentDescription = stringResource(R.string.action_share),
-              tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          }
-
-          // Delete Button (shows confirm dialog)
-          if (currentNoteId != 0L) {
+          // Overflow: colour & tags, share, archive, delete
+          Box {
             IconButton(
-              onClick = { showDeleteConfirmDialog = true },
-              modifier = Modifier.testTag("editor_delete_button")
+              onClick = { showOverflow = true },
+              modifier = Modifier.testTag("editor_overflow_button")
             ) {
               Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = stringResource(R.string.action_delete),
-                tint = MaterialTheme.colorScheme.error
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.action_options),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
               )
+            }
+            DropdownMenu(expanded = showOverflow, onDismissRequest = { showOverflow = false }) {
+              DropdownMenuItem(
+                text = { Text(stringResource(R.string.options_color_and_tags)) },
+                leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null) },
+                onClick = { showOverflow = false; showOptionsSheet = true },
+                modifier = Modifier.testTag("editor_options_item")
+              )
+              DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_share)) },
+                leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                onClick = {
+                  showOverflow = false
+                  val currentContent = contentTextFieldValue.text
+                  val sendIntent: Intent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_TITLE, title)
+                    putExtra(Intent.EXTRA_TEXT, "$title\n\n$currentContent")
+                    type = "text/plain"
+                  }
+                  context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.action_share)))
+                },
+                modifier = Modifier.testTag("editor_share_button")
+              )
+              DropdownMenuItem(
+                text = { Text(stringResource(if (isArchived) R.string.action_unarchive else R.string.action_archive)) },
+                leadingIcon = {
+                  Icon(if (isArchived) Icons.Default.Unarchive else Icons.Default.Archive, contentDescription = null)
+                },
+                onClick = {
+                  showOverflow = false
+                  isArchived = !isArchived
+                  saveCurrentNote(shouldClose = true)
+                },
+                modifier = Modifier.testTag("editor_archive_button")
+              )
+              if (currentNoteId != 0L) {
+                DropdownMenuItem(
+                  text = { Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error) },
+                  leadingIcon = {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                  },
+                  onClick = { showOverflow = false; showDeleteConfirmDialog = true },
+                  modifier = Modifier.testTag("editor_delete_button")
+                )
+              }
             }
           }
         },
@@ -572,6 +635,15 @@ fun NoteEditorScreen(
               innerTextField()
             }
           )
+        }
+
+        if (tags.isNotEmpty()) {
+          androidx.compose.foundation.layout.Row(
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(bottom = 8.dp).testTag("editor_tags_row")
+          ) {
+            tags.forEach { TagPill(it) }
+          }
         }
 
         HorizontalDivider(

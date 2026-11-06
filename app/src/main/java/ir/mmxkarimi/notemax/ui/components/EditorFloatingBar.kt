@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -30,7 +31,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -54,33 +54,23 @@ fun EditorFloatingBar(
   modifier: Modifier = Modifier
 ) {
   Surface(
-    shape = RoundedCornerShape(32.dp),
+    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    tonalElevation = 8.dp,
-    shadowElevation = 14.dp,
-    border = BorderStroke(
-      1.dp,
-      MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-    ),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     modifier = modifier
-      .padding(horizontal = 16.dp, vertical = 12.dp)
-      .shadow(
-        elevation = 16.dp,
-        shape = RoundedCornerShape(32.dp),
-        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-      )
+      .fillMaxWidth()
       .testTag("editor_floating_bar")
   ) {
     // Scrollable Markdown Formatting Actions
     Row(
       modifier = Modifier
-        .padding(horizontal = 8.dp, vertical = 4.dp)
+        .padding(horizontal = 8.dp, vertical = 2.dp)
         .horizontalScroll(rememberScrollState()),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
       // Heading
-      IconButton(onClick = onInsertHeading, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertHeading, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.Title,
           contentDescription = stringResource(R.string.tool_heading),
@@ -90,7 +80,7 @@ fun EditorFloatingBar(
       }
 
       // Checklist Box
-      IconButton(onClick = onInsertChecklist, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertChecklist, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.CheckBox,
           contentDescription = stringResource(R.string.tool_checklist),
@@ -100,7 +90,7 @@ fun EditorFloatingBar(
       }
 
       // Bold
-      IconButton(onClick = onInsertBold, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertBold, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.FormatBold,
           contentDescription = stringResource(R.string.tool_bold),
@@ -110,7 +100,7 @@ fun EditorFloatingBar(
       }
 
       // Italic
-      IconButton(onClick = onInsertItalic, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertItalic, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.FormatItalic,
           contentDescription = stringResource(R.string.tool_italic),
@@ -120,7 +110,7 @@ fun EditorFloatingBar(
       }
 
       // Strikethrough
-      IconButton(onClick = onInsertStrikethrough, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertStrikethrough, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.FormatStrikethrough,
           contentDescription = stringResource(R.string.tool_strikethrough),
@@ -130,7 +120,7 @@ fun EditorFloatingBar(
       }
 
       // Bullet List
-      IconButton(onClick = onInsertBullet, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertBullet, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
           contentDescription = stringResource(R.string.tool_bullet),
@@ -140,7 +130,7 @@ fun EditorFloatingBar(
       }
 
       // Numbered List
-      IconButton(onClick = onInsertNumbered, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertNumbered, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.FormatListNumbered,
           contentDescription = stringResource(R.string.tool_numbered),
@@ -150,7 +140,7 @@ fun EditorFloatingBar(
       }
 
       // Code
-      IconButton(onClick = onInsertCode, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertCode, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.Code,
           contentDescription = stringResource(R.string.tool_code),
@@ -160,7 +150,7 @@ fun EditorFloatingBar(
       }
 
       // Quote
-      IconButton(onClick = onInsertQuote, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertQuote, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.FormatQuote,
           contentDescription = stringResource(R.string.tool_quote),
@@ -170,7 +160,7 @@ fun EditorFloatingBar(
       }
 
       // Table
-      IconButton(onClick = onInsertTable, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertTable, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.TableChart,
           contentDescription = stringResource(R.string.tool_table),
@@ -180,7 +170,7 @@ fun EditorFloatingBar(
       }
 
       // Horizontal Rule
-      IconButton(onClick = onInsertHorizontalRule, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertHorizontalRule, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.HorizontalRule,
           contentDescription = stringResource(R.string.tool_horizontal_rule),
@@ -190,7 +180,7 @@ fun EditorFloatingBar(
       }
 
       // Link
-      IconButton(onClick = onInsertLink, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertLink, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.Link,
           contentDescription = stringResource(R.string.tool_link),
@@ -200,7 +190,7 @@ fun EditorFloatingBar(
       }
 
       // Timestamp
-      IconButton(onClick = onInsertTimestamp, modifier = Modifier.size(40.dp)) {
+      IconButton(onClick = onInsertTimestamp, modifier = Modifier.size(48.dp)) {
         Icon(
           imageVector = Icons.Default.Schedule,
           contentDescription = stringResource(R.string.tool_timestamp),

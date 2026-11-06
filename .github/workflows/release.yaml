@@ -38,20 +38,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
+      # setup-gradle handles Gradle caching; extra cache layers just fight over ~/.gradle.
       - name: Setup Gradle helper
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Cache Gradle directories
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Install Android SDK 37 platform
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0"
 
       - name: Validate required secrets
         id: check-secrets
@@ -149,21 +144,25 @@ jobs:
             dist/*.apk
             dist/*.sha256
 
-      - name: Get version from tag
+      # Tag releases from the app's versionName (e.g. v2.0.0) instead of the branch name,
+      # which would otherwise create a tag literally called "master".
+      - name: Get version from build.gradle.kts
         id: version
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION=untagged-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          name=$(sed -nE 's/^\s*versionName\s*=\s*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)
+          if [ -z "$name" ]; then
+            echo "::error::versionName not found in app/build.gradle.kts" >&2
+            exit 1
           fi
+          echo "VERSION=v$name" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         id: gh-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: NoteMax ${{ steps.version.outputs.VERSION }}
           generate_release_notes: true
           files: |
             dist/*.apk

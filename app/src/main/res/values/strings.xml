@@ -74,4 +74,72 @@
     <string name="copy_code">Copy code</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
     <string name="untitled_note">Untitled Note</string>
+
+    <!-- Redesign: navigation & actions -->
+    <string name="action_new_note">New note</string>
+    <string name="action_archive">Archive</string>
+    <string name="action_unarchive">Unarchive</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_empty_trash">Empty trash</string>
+    <string name="action_delete_forever">Delete forever</string>
+    <string name="action_remove_tag">Remove tag</string>
+    <string name="view_list">Switch to list view</string>
+    <string name="view_grid">Switch to grid view</string>
+    <string name="nav_archive">Archive</string>
+    <string name="nav_trash">Trash</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Filters, selection, feedback -->
+    <string name="filter_all">All</string>
+    <string name="filter_clear">Clear filter</string>
+    <string name="no_filter_results">No notes with this tag</string>
+    <string name="no_filter_results_description">Clear the filter to see all your notes</string>
+    <string name="snackbar_moved_to_trash">Moved to trash</string>
+    <string name="snackbar_archived">Archived</string>
+    <plurals name="selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+
+    <!-- Colour & tags -->
+    <string name="color_none">No colour</string>
+    <string name="tags_placeholder">Add a tag and press done</string>
+    <string name="options_color">Colour</string>
+    <string name="options_tags">Tags</string>
+    <string name="options_color_and_tags">Colour and tags</string>
+
+    <!-- Trash & archive -->
+    <string name="trash_empty_title">Trash is empty</string>
+    <string name="trash_empty_description">Notes you remove show up here until they are deleted for good</string>
+    <string name="archive_empty_title">Nothing archived</string>
+    <string name="archive_empty_description">Archive notes you want to keep but don\'t need on your main screen</string>
+    <string name="dialog_empty_trash_title">Empty trash</string>
+    <string name="dialog_empty_trash_message">All notes in the trash will be deleted permanently. This can\'t be undone.</string>
+    <plurals name="trash_retention_info">
+        <item quantity="one">Notes in the trash are deleted automatically after %1$d day.</item>
+        <item quantity="other">Notes in the trash are deleted automatically after %1$d days.</item>
+    </plurals>
+
+    <!-- Settings -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Wallpaper colours</string>
+    <string name="settings_dynamic_color_desc">Use colours from your wallpaper instead of the NoteMax lime</string>
+    <string name="settings_dynamic_color_unsupported">Requires Android 12 or newer</string>
+    <string name="settings_notes">Notes</string>
+    <string name="settings_grid_view">Grid view</string>
+    <string name="settings_grid_view_desc">Show notes in two columns</string>
+    <string name="settings_sort">Sort notes by</string>
+    <string name="sort_manual">Manual</string>
+    <string name="sort_edited">Last edited</string>
+    <string name="sort_created">Date created</string>
+    <string name="sort_title">Title</string>
+    <string name="settings_trash_retention">Empty trash automatically after</string>
+    <string name="retention_never">Never</string>
+    <string name="retention_days">%1$d days</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_text">NoteMax keeps your notes on this device. Markdown, checklists and tags, with no account needed.</string>
 </resources>

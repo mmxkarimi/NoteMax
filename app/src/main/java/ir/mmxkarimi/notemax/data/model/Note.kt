@@ -22,10 +22,11 @@ data class Note(
   val isTrashed: Boolean = false,
   val createdAt: Long = System.currentTimeMillis(),
   val updatedAt: Long = System.currentTimeMillis(),
-  val orderIndex: Int = 0
+  val orderIndex: Int = 0,
+  val tags: List<String> = emptyList()
 ) {
   val displayTitle: String
-    get() = if (title.isNotBlank()) title else "Untitled Note"
+    get() = title
 
   val displayContent: String
     get() = content
@@ -69,6 +70,12 @@ data class Note(
     }
 
   companion object {
+    fun parseTags(raw: String): List<String> =
+      raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
+    fun serializeTags(tags: List<String>): String =
+      tags.map { it.trim().lowercase().replace(",", "") }.filter { it.isNotEmpty() }.distinct().joinToString(",")
+
     fun serializeChecklist(items: List<ChecklistItem>): String {
       return items.joinToString("\n") { item ->
         val check = if (item.isChecked) "[x]" else "[ ]"

@@ -1,158 +1,70 @@
 package ir.mmxkarimi.notemax.widget
 
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.widget.RemoteViews
-import ir.mmxkarimi.notemax.MainActivity
-import ir.mmxkarimi.notemax.R
-import ir.mmxkarimi.notemax.data.db.AppDatabase
-import ir.mmxkarimi.notemax.data.model.Note
+import android.os.Bundle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
-class NoteWidgetProvider : AppWidgetProvider() {
+/** Widget provider: renders each widget directly in the broadcast (no WorkManager session). */
+class NoteGlanceWidgetReceiver : AppWidgetProvider() {
 
-  private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+  override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+    NoteWidgetProvider.renderAsync(context, appWidgetIds, goAsync())
+  }
 
-  override fun onUpdate(
+  override fun onAppWidgetOptionsChanged(
     context: Context,
     appWidgetManager: AppWidgetManager,
-    appWidgetIds: IntArray
+    appWidgetId: Int,
+    newOptions: Bundle
   ) {
-    for (appWidgetId in appWidgetIds) {
-      updateWidgetAsync(context, appWidgetManager, appWidgetId)
-    }
+    NoteWidgetProvider.renderAsync(context, intArrayOf(appWidgetId), goAsync())
   }
 
   override fun onDeleted(context: Context, appWidgetIds: IntArray) {
-    for (appWidgetId in appWidgetIds) {
-      NoteWidgetPrefs.deleteWidget(context, appWidgetId)
+    appWidgetIds.forEach { NoteWidgetPrefs.deleteWidget(context, it) }
+  }
+}
+
+/** Entry point used by the app to refresh every placed widget after a note changes. */
+object NoteWidgetProvider {
+  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+  fun updateAllWidgets(context: Context) {
+    val app = context.applicationContext
+    val ids = AppWidgetManager.getInstance(app)
+      .getAppWidgetIds(ComponentName(app, NoteGlanceWidgetReceiver::class.java))
+    if (ids.isNotEmpty()) renderAsync(app, ids, null)
+  }
+
+  /** Renders [ids] now; suspend-friendly variant used by the configure screen. */
+  suspend fun render(context: Context, ids: IntArray) {
+    val app = context.applicationContext
+    val manager = AppWidgetManager.getInstance(app)
+    ids.forEach { id ->
+      val views = NoteGlanceWidget.render(app, id, manager.getAppWidgetOptions(id))
+      manager.updateAppWidget(id, views)
     }
   }
 
-  private fun updateWidgetAsync(
+  internal fun renderAsync(
     context: Context,
-    appWidgetManager: AppWidgetManager,
-    appWidgetId: Int
+    ids: IntArray,
+    pending: android.content.BroadcastReceiver.PendingResult?
   ) {
-    coroutineScope.launch {
-      val noteId = NoteWidgetPrefs.loadNoteId(context, appWidgetId)
-      val views = RemoteViews(context.packageName, R.layout.widget_note_view)
-
-      if (noteId == 0L) {
-        showEmptyWidget(context, views, appWidgetId, appWidgetManager)
-        return@launch
-      }
-
-      val db = AppDatabase.getInstance(context)
-      val noteEntity = db.noteDao().getNoteByIdDirect(noteId)
-
-      if (noteEntity == null || noteEntity.isTrashed) {
-        showEmptyWidget(context, views, appWidgetId, appWidgetManager)
-        return@launch
-      }
-
-      val note = Note(
-        id = noteEntity.id,
-        title = noteEntity.title,
-        content = noteEntity.content,
-        createdAt = noteEntity.createdAt,
-        updatedAt = noteEntity.updatedAt
-      )
-
-      val titleText = if (note.title.isNotBlank()) note.title else context.getString(R.string.untitled_note)
-      views.setTextViewText(R.id.widget_title, titleText)
-
-      // Bind RemoteViewsService to the ListView for full scrollable markdown rendering
-      val serviceIntent = Intent(context, NoteWidgetService::class.java).apply {
-        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        data = Uri.parse("notemax://widget/$appWidgetId/${System.currentTimeMillis()}")
-      }
-      views.setRemoteAdapter(R.id.widget_list_view, serviceIntent)
-      views.setEmptyView(R.id.widget_list_view, R.id.widget_empty_container)
-
-      // Set PendingIntent template on ListView (clicking any item opens MainActivity)
-      val openNoteIntent = Intent(context, MainActivity::class.java).apply {
-        action = Intent.ACTION_VIEW
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-      }
-      val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-      } else {
-        PendingIntent.FLAG_UPDATE_CURRENT
-      }
-      val openPendingIntent = PendingIntent.getActivity(
-        context,
-        appWidgetId,
-        openNoteIntent,
-        pendingIntentFlags
-      )
-      views.setPendingIntentTemplate(R.id.widget_list_view, openPendingIntent)
-
-      // Header click directly opens this specific note
-      val headerIntent = Intent(context, MainActivity::class.java).apply {
-        action = Intent.ACTION_VIEW
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        putExtra(MainActivity.EXTRA_NOTE_ID, note.id)
-      }
-      val headerPendingIntent = PendingIntent.getActivity(
-        context,
-        200000 + appWidgetId,
-        headerIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-      )
-      views.setOnClickPendingIntent(R.id.widget_header, headerPendingIntent)
-      views.setOnClickPendingIntent(R.id.widget_title, headerPendingIntent)
-
-      appWidgetManager.updateAppWidget(appWidgetId, views)
-      appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
-    }
-  }
-
-  private fun showEmptyWidget(
-    context: Context,
-    views: RemoteViews,
-    appWidgetId: Int,
-    appWidgetManager: AppWidgetManager
-  ) {
-    views.setTextViewText(R.id.widget_title, context.getString(R.string.app_name))
-
-    val configureIntent = Intent(context, NoteWidgetConfigureActivity::class.java).apply {
-      putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-    }
-    val configurePendingIntent = PendingIntent.getActivity(
-      context,
-      appWidgetId,
-      configureIntent,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-    views.setOnClickPendingIntent(R.id.widget_root, configurePendingIntent)
-    views.setOnClickPendingIntent(R.id.widget_empty_container, configurePendingIntent)
-
-    appWidgetManager.updateAppWidget(appWidgetId, views)
-  }
-
-  companion object {
-    fun updateAllWidgets(context: Context) {
-      val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
-      val thisWidget = ComponentName(context, NoteWidgetProvider::class.java)
-      val appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget) ?: return
-      if (appWidgetIds.isNotEmpty()) {
-        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list_view)
-        val intent = Intent(context, NoteWidgetProvider::class.java).apply {
-          action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-          putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds)
-        }
-        context.sendBroadcast(intent)
+    val app = context.applicationContext
+    scope.launch {
+      try {
+        // Broadcasts must finish within ~10s; rendering takes milliseconds.
+        withTimeoutOrNull(8_000) { render(app, ids) }
+      } finally {
+        pending?.finish()
       }
     }
   }
