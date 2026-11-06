@@ -8,14 +8,14 @@ plugins {
 
 android {
   namespace = "ir.mmxkarimi.notemax"
-  compileSdk = 36
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "ir.mmxkarimi.notemax"
     minSdk = 29
-    targetSdk = 36
-    versionCode = 1
-    versionName = "1.0.0"
+    targetSdk = 37
+    versionCode = 2
+    versionName = "2.0.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
@@ -47,12 +47,6 @@ android {
       keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
     }
 
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
   }
 
   buildTypes {
@@ -68,6 +62,7 @@ android {
     }
 
     debug {
+      // Shrunk with R8 like release, signed with the default Android debug key.
       isDebuggable = false
       isMinifyEnabled = true
       isShrinkResources = true
@@ -75,7 +70,6 @@ android {
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro"
       )
-      signingConfig = signingConfigs.getByName("debugConfig")
     }
   }
 
@@ -112,6 +106,11 @@ android {
   }
 }
 
+// Export Room schemas so migrations can be tested and reviewed.
+ksp {
+  arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
 // to match the convention used in Web projects.
 secrets {
@@ -129,6 +128,8 @@ dependencies {
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
+  implementation(libs.androidx.glance.appwidget)
+  implementation(libs.reorderable)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)

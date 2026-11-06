@@ -38,7 +38,8 @@ class NoteRepository(private val noteDao: NoteDao) {
       isTrashed = note.isTrashed,
       createdAt = if (note.id == 0L) now else note.createdAt,
       updatedAt = now,
-      orderIndex = note.orderIndex
+      orderIndex = note.orderIndex,
+      tags = Note.serializeTags(note.tags)
     )
 
     val savedId = noteDao.insertNote(entity)
@@ -71,6 +72,10 @@ class NoteRepository(private val noteDao: NoteDao) {
     noteDao.deletePermanently(id)
   }
 
+  suspend fun purgeTrashOlderThan(cutoff: Long) {
+    noteDao.purgeTrashOlderThan(cutoff)
+  }
+
   suspend fun emptyTrash() {
     noteDao.emptyTrash()
   }
@@ -98,7 +103,8 @@ class NoteRepository(private val noteDao: NoteDao) {
       isTrashed = entity.isTrashed,
       createdAt = entity.createdAt,
       updatedAt = entity.updatedAt,
-      orderIndex = entity.orderIndex
+      orderIndex = entity.orderIndex,
+      tags = Note.parseTags(entity.tags)
     )
   }
 

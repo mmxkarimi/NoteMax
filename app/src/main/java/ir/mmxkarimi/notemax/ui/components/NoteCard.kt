@@ -1,13 +1,21 @@
 package ir.mmxkarimi.notemax.ui.components
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,35 +23,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -53,219 +52,88 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ir.mmxkarimi.notemax.R
 import ir.mmxkarimi.notemax.data.model.Note
+import ir.mmxkarimi.notemax.ui.theme.CardShape
+import ir.mmxkarimi.notemax.ui.theme.Dimens
+import ir.mmxkarimi.notemax.ui.theme.NoteColors
+import ir.mmxkarimi.notemax.ui.theme.Pill
+import ir.mmxkarimi.notemax.ui.theme.isAppDark
 
+/**
+ * A note in the Home / Archive / Trash / Search lists.
+ *
+ * Tap opens, long-press starts multi-select. Press feedback is a quick spring scale (0.97) so the
+ * card feels physical without ever blocking the tap.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteCard(
   note: Note,
   onClick: () -> Unit,
-  onTogglePin: () -> Unit,
-  onRemove: () -> Unit,
-  onRestore: () -> Unit,
-  onDeletePermanently: () -> Unit,
+  modifier: Modifier = Modifier,
+  onLongClick: (() -> Unit)? = null,
   onToggleChecklistItem: ((Int) -> Unit)? = null,
-  isDragging: Boolean = false,
-  modifier: Modifier = Modifier
+  selected: Boolean = false,
+  selectionMode: Boolean = false,
+  maxPreviewLines: Int = 5,
+  footer: (@Composable ColumnScope.() -> Unit)? = null
 ) {
-  var menuExpanded by remember { mutableStateOf(false) }
-  var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-  var isPermanentDelete by remember { mutableStateOf(false) }
+  val interaction = remember { MutableInteractionSource() }
+  val pressed by interaction.collectIsPressedAsState()
+  val scale by animateFloatAsState(
+    targetValue = if (pressed) 0.97f else 1f,
+    animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+    label = "card_press"
+  )
 
-  if (showDeleteConfirmDialog) {
-    CenteredDeleteConfirmDialog(
-      onConfirm = {
-        showDeleteConfirmDialog = false
-        if (isPermanentDelete) {
-          onDeletePermanently()
-        } else {
-          onRemove()
-        }
-      },
-      onDismiss = { showDeleteConfirmDialog = false }
-    )
+  val tint = NoteColors.resolve(note.colorHex, isAppDark())
+  val container = tint ?: MaterialTheme.colorScheme.surfaceContainer
+  val border = when {
+    selected -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+    else -> null
   }
 
-  Card(
+  Box(
     modifier = modifier
       .fillMaxWidth()
-      .clip(RoundedCornerShape(20.dp))
-      .clickable { onClick() }
-      .testTag("note_card_${note.id}"),
-    shape = RoundedCornerShape(20.dp),
-    colors = CardDefaults.cardColors(
-      containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh
-      else MaterialTheme.colorScheme.surfaceContainer
-    ),
-    border = BorderStroke(
-      width = if (isDragging) 2.dp else if (note.isPinned) 1.5.dp else 1.dp,
-      color = if (isDragging) MaterialTheme.colorScheme.primary
-      else if (note.isPinned) MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-      else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-    ),
-    elevation = CardDefaults.cardElevation(
-      defaultElevation = if (isDragging) 12.dp else if (note.isPinned) 4.dp else 1.dp
-    )
+      .graphicsLayer { scaleX = scale; scaleY = scale }
+      .clip(CardShape)
+      .background(container)
+      .let { if (border != null) it.then(Modifier.cardBorder(border)) else it }
+      .combinedClickable(
+        interactionSource = interaction,
+        indication = LocalIndication.current,
+        onClick = onClick,
+        onLongClick = onLongClick
+      )
+      .testTag("note_card_${note.id}")
   ) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(16.dp)
+        .padding(Dimens.md),
+      verticalArrangement = Arrangement.spacedBy(Dimens.xs)
     ) {
-      // Top Row: Pin and Actions
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        // Left: Date
-        Text(
-          text = note.formattedDateShort,
-          style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-          color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        )
-
-        // Actions: Pin and Overflow (reordering is done by long-pressing the card)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          if (!note.isTrashed) {
-            IconButton(
-              onClick = onTogglePin,
-              modifier = Modifier.size(32.dp)
-            ) {
-              Icon(
-                imageVector = if (note.isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                contentDescription = if (note.isPinned) stringResource(R.string.action_unpin) else stringResource(R.string.action_pin),
-                tint = if (note.isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(18.dp)
-              )
-            }
-          }
-
-          Box {
-            IconButton(
-              onClick = { menuExpanded = true },
-              modifier = Modifier.size(32.dp)
-            ) {
-              Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = stringResource(R.string.action_options),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
-              )
-            }
-
-            DropdownMenu(
-              expanded = menuExpanded,
-              onDismissRequest = { menuExpanded = false }
-            ) {
-              if (note.isTrashed) {
-                DropdownMenuItem(
-                  text = { Text(stringResource(R.string.action_restore)) },
-                  leadingIcon = {
-                    Icon(
-                      imageVector = Icons.Default.Restore,
-                      contentDescription = null,
-                      modifier = Modifier.size(18.dp)
-                    )
-                  },
-                  onClick = {
-                    onRestore()
-                    menuExpanded = false
-                  }
-                )
-                DropdownMenuItem(
-                  text = {
-                    Text(
-                      stringResource(R.string.action_delete_permanently),
-                      color = MaterialTheme.colorScheme.error
-                    )
-                  },
-                  leadingIcon = {
-                    Icon(
-                      imageVector = Icons.Default.DeleteForever,
-                      contentDescription = null,
-                      tint = MaterialTheme.colorScheme.error,
-                      modifier = Modifier.size(18.dp)
-                    )
-                  },
-                  onClick = {
-                    menuExpanded = false
-                    isPermanentDelete = true
-                    showDeleteConfirmDialog = true
-                  }
-                )
-              } else {
-                DropdownMenuItem(
-                  text = {
-                    Text(if (note.isPinned) stringResource(R.string.action_unpin) else stringResource(R.string.action_pin))
-                  },
-                  leadingIcon = {
-                    Icon(
-                      imageVector = if (note.isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                      contentDescription = null,
-                      modifier = Modifier.size(18.dp)
-                    )
-                  },
-                  onClick = {
-                    onTogglePin()
-                    menuExpanded = false
-                  }
-                )
-                DropdownMenuItem(
-                  text = {
-                    Text(
-                      stringResource(R.string.action_remove),
-                      color = MaterialTheme.colorScheme.error
-                    )
-                  },
-                  leadingIcon = {
-                    Icon(
-                      imageVector = Icons.Default.Delete,
-                      contentDescription = null,
-                      tint = MaterialTheme.colorScheme.error,
-                      modifier = Modifier.size(18.dp)
-                    )
-                  },
-                  onClick = {
-                    menuExpanded = false
-                    isPermanentDelete = false
-                    showDeleteConfirmDialog = true
-                  }
-                )
-              }
-            }
-          }
-        }
-      }
-
-      Spacer(modifier = Modifier.height(6.dp))
-
-      // Title
       if (note.title.isNotBlank()) {
         val isTitleRtl = isRtlText(note.title)
         Text(
           text = note.title,
           style = MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
             textDirection = if (isTitleRtl) TextDirection.Rtl else TextDirection.Ltr
           ),
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 2,
           overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.fillMaxWidth()
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(end = if (selectionMode || note.isPinned) Dimens.lg else 0.dp)
         )
-        Spacer(modifier = Modifier.height(4.dp))
       }
 
-      // Checklist preview or markdown/text preview
-      val parsedChecklist = Note.parseChecklist(note.content)
+      val parsedChecklist = remember(note.content) { Note.parseChecklist(note.content) }
       if (parsedChecklist.isNotEmpty()) {
-        Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(Dimens.xxs)) {
           parsedChecklist.take(4).forEachIndexed { idx, item ->
             val isRtl = isRtlText(item.text)
             CompositionLocalProvider(
@@ -275,9 +143,10 @@ fun NoteCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                   .fillMaxWidth()
-                  .clip(RoundedCornerShape(6.dp))
-                  .clickable { onToggleChecklistItem?.invoke(idx) }
-                  .padding(vertical = 1.dp)
+                  .clip(RoundedCornerShape(8.dp))
+                  .clickable(enabled = onToggleChecklistItem != null && !selectionMode) {
+                    onToggleChecklistItem?.invoke(idx)
+                  }
               ) {
                 Icon(
                   imageVector = if (item.isChecked) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
@@ -285,15 +154,15 @@ fun NoteCard(
                   tint = if (item.isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                   modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(Modifier.width(Dimens.xs))
                 Text(
                   text = renderInlineMarkdown(item.text),
                   style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 13.sp,
                     textDirection = if (isRtl) TextDirection.Rtl else TextDirection.Ltr,
                     textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
                   ),
-                  color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
+                  color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                  else MaterialTheme.colorScheme.onSurface,
                   maxLines = 1,
                   overflow = TextOverflow.Ellipsis,
                   modifier = Modifier.weight(1f)
@@ -301,54 +170,123 @@ fun NoteCard(
               }
             }
           }
-
           if (parsedChecklist.size > 4) {
-            val isRtl = parsedChecklist.any { isRtlText(it.text) }
-            CompositionLocalProvider(
-              LocalLayoutDirection provides if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
-            ) {
-              Text(
-                text = stringResource(R.string.more_items_count, parsedChecklist.size - 4),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp)
-              )
-            }
+            Text(
+              text = stringResource(R.string.more_items_count, parsedChecklist.size - 4),
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
           }
         }
       } else if (note.content.isNotBlank()) {
-        MarkdownPreview(
-          markdownText = note.content,
-          maxLines = 5
-        )
+        MarkdownPreview(markdownText = note.content, maxLines = maxPreviewLines)
       }
 
-      // Checklist progress indicator if markdown checklist exists
       note.checklistProgress?.let { (completed, total) ->
         if (total > 0) {
-          Spacer(modifier = Modifier.height(8.dp))
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             LinearProgressIndicator(
               progress = { completed.toFloat() / total.toFloat() },
               modifier = Modifier
                 .weight(1f)
-                .height(5.dp)
-                .clip(RoundedCornerShape(3.dp)),
+                .height(4.dp)
+                .clip(Pill),
               color = MaterialTheme.colorScheme.primary,
-              trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+              trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+              gapSize = 0.dp,
+              drawStopIndicator = {}
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(Modifier.width(Dimens.xs))
             Text(
               text = "$completed/$total",
-              style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
+              style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )
           }
         }
       }
+
+      if (note.tags.isNotEmpty()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.xxs), verticalAlignment = Alignment.CenterVertically) {
+          note.tags.take(2).forEach { TagPill(it) }
+          if (note.tags.size > 2) {
+            Text(
+              text = "+${note.tags.size - 2}",
+              style = MaterialTheme.typography.labelSmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+      }
+
+      Text(
+        text = note.formattedDateShort,
+        style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+
+      footer?.invoke(this)
+    }
+
+    // Top-end status: selection check, or pin marker.
+    Box(
+      modifier = Modifier
+        .align(Alignment.TopEnd)
+        .padding(Dimens.sm)
+    ) {
+      when {
+        selectionMode -> {
+          Box(
+            modifier = Modifier
+              .size(22.dp)
+              .clip(CircleShape)
+              .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+              .cardBorder(
+                BorderStroke(
+                  1.5.dp,
+                  if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                ),
+                CircleShape
+              ),
+            contentAlignment = Alignment.Center
+          ) {
+            if (selected) {
+              Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(14.dp)
+              )
+            }
+          }
+        }
+        note.isPinned -> Icon(
+          imageVector = Icons.Default.PushPin,
+          contentDescription = stringResource(R.string.action_unpin),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant,
+          modifier = Modifier.size(16.dp)
+        )
+      }
     }
   }
 }
+
+@Composable
+fun TagPill(tag: String, modifier: Modifier = Modifier) {
+  Text(
+    text = "#$tag",
+    style = MaterialTheme.typography.labelSmall,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
+    modifier = modifier
+      .clip(Pill)
+      .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+      .padding(horizontal = Dimens.xs, vertical = 2.dp)
+  )
+}
+
+private fun Modifier.cardBorder(
+  border: BorderStroke,
+  shape: androidx.compose.ui.graphics.Shape = CardShape
+): Modifier = this.then(Modifier.border(border, shape))

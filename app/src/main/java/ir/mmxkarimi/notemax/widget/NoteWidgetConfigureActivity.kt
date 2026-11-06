@@ -4,6 +4,8 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -56,7 +58,7 @@ import ir.mmxkarimi.notemax.data.db.AppDatabase
 import ir.mmxkarimi.notemax.data.model.Note
 import ir.mmxkarimi.notemax.data.repository.NoteRepository
 import ir.mmxkarimi.notemax.ui.components.MarkdownPreview
-import ir.mmxkarimi.notemax.ui.theme.MyApplicationTheme
+import ir.mmxkarimi.notemax.ui.theme.NoteMaxTheme
 
 class NoteWidgetConfigureActivity : ComponentActivity() {
 
@@ -84,7 +86,7 @@ class NoteWidgetConfigureActivity : ComponentActivity() {
     }
 
     setContent {
-      MyApplicationTheme {
+      NoteMaxTheme {
         WidgetConfigureContent(
           onSelectNote = { selectedNote ->
             selectNoteAndFinish(selectedNote)
@@ -98,17 +100,16 @@ class NoteWidgetConfigureActivity : ComponentActivity() {
   private fun selectNoteAndFinish(note: Note) {
     NoteWidgetPrefs.saveNoteId(this, appWidgetId, note.id)
 
-    // Trigger update for this widget
-    val appWidgetManager = AppWidgetManager.getInstance(this)
-    val provider = NoteWidgetProvider()
-    provider.onUpdate(this, appWidgetManager, intArrayOf(appWidgetId))
-    appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
-
     val resultValue = Intent().apply {
       putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
     }
     setResult(Activity.RESULT_OK, resultValue)
-    finish()
+
+    // Push the first real content to this widget before closing, so the host never keeps the spinner.
+    lifecycleScope.launch {
+      runCatching { NoteWidgetProvider.render(this@NoteWidgetConfigureActivity, intArrayOf(appWidgetId)) }
+      finish()
+    }
   }
 
   @OptIn(ExperimentalMaterial3Api::class)

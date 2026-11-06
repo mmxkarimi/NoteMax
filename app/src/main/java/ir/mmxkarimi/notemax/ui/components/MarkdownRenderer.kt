@@ -773,6 +773,7 @@ fun MarkdownPreview(
 /**
  * Parses basic inline markdown: **bold**, *italic*, ~~strikethrough~~, `code`, and [text](link)
  */
+@androidx.compose.runtime.Composable
 fun renderInlineMarkdown(text: String, uriHandler: UriHandler? = null) = buildAnnotatedString {
   var i = 0
   val len = text.length
@@ -814,7 +815,7 @@ fun renderInlineMarkdown(text: String, uriHandler: UriHandler? = null) = buildAn
           withStyle(
             SpanStyle(
               fontFamily = FontFamily.Monospace,
-              background = Color(0x1F888888),
+              background = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
               fontSize = 13.sp
             )
           ) {
@@ -859,7 +860,7 @@ fun renderInlineMarkdown(text: String, uriHandler: UriHandler? = null) = buildAn
             url = validUrl,
             styles = TextLinkStyles(
               style = SpanStyle(
-                color = Color(0xFF2196F3),
+                color = MaterialTheme.colorScheme.primary,
                 textDecoration = TextDecoration.Underline
               )
             ),
